@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">晷</string>
+    <string name="slogan">以晷量时，以行成事</string>
+    <string name="tab_home">主页</string>
+    <string name="tab_tasks">任务</string>
+    <string name="tab_stats">统计</string>
+    <string name="settings">设置</string>
+</resources>
