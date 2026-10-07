@@ -40,22 +40,33 @@ class PomodoroRepository(private val db: AppDatabase) {
     }
 
     fun start(taskId: Long?) {
-        engine.applyPreset(runBlocking { db.presetDao().getDefault() ?: defaultPreset() })
+        val p = runBlocking { db.presetDao().getDefault() ?: defaultPreset() }
+        engine.applyPreset(p)
         engine.start(taskId, System.currentTimeMillis())
         current()
     }
     fun skip() { engine.skipSegment(System.currentTimeMillis()); current() }
-    fun finish() { engine.finishAll(System.currentTimeMillis()); current() }
+    fun finish() {
+        engine.finishAll(System.currentTimeMillis())
+        // close the currently-open session so it isn't left dangling
+        io.launch {
+            val open = db.sessionDao().getOpen()
+            if (open != null) db.sessionDao().close(open.id, System.currentTimeMillis(), open.completedMin, true)
+        }
+        current()
+    }
 
+    /**
+     * On cold start, if a focus session was left open (app killed mid-timer),
+     * close it as finished-by-time and re-apply the last preset.
+     */
     fun recoverOnStartup() {
-        // If a session was open (app killed mid-focus), let the engine recompute.
         runBlocking {
             val open = db.sessionDao().getOpen()
             if (open != null) {
-                // Mark it finished-by-time if it had already elapsed; else leave open.
                 db.sessionDao().close(open.id, System.currentTimeMillis(), open.completedMin, true)
-                io.launch { db.sessionDao().clearOpen() }
             }
+            db.presetDao().getDefault()?.let { engine.applyPreset(it) }
         }
         current()
     }

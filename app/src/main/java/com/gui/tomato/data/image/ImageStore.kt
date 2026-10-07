@@ -10,8 +10,10 @@ class ImageStore(private val ctx: Context) {
     fun saveUri(taskId: Long, uri: Uri, idx: Int): String {
         val name = "task${taskId}_i${idx}_${System.currentTimeMillis()}.jpg"
         val out = File(dir, name)
-        ctx.contentResolver.openInputStream(uri)?.use { input ->
-            out.outputStream().use { outw -> input.copyTo(outw) }
+        val stream = ctx.contentResolver.openInputStream(uri)
+        if (stream != null) {
+            val fos = out.outputStream()
+            stream.use { input -> fos.use { outw -> input.copyTo(outw) } }
         }
         return out.absolutePath
     }
