@@ -1,5 +1,9 @@
 package com.gui.tomato.ui.screens
 
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -19,6 +23,7 @@ import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -27,6 +32,7 @@ import com.gui.tomato.GuiApp
 import com.gui.tomato.R
 import com.gui.tomato.data.entities.Task
 import com.gui.tomato.ui.components.StaggerIn
+import kotlinx.coroutines.delay
 
 private val DarkBg = Color(0xFF0D0D0D)
 private val DarkCard = Color(0xFF1A1A1A)
@@ -34,6 +40,12 @@ private val DarkTextSub = Color(0xFF8A8A8A)
 private val DarkTextMain = Color(0xFFFFFFFF)
 private val OrangeStart = Color(0xFFE4572E)
 private val OrangeEnd = Color(0xFFFFA35C)
+
+// 乱码池：符号 + 少量片假名
+private val ScramblePool = "!@#$%&*+-=?<>[]{}|/\\~^;:アイウエオカキ".toList()
+
+// 每个字占的额外宽度
+private val CharWidthDp = 22.dp
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -89,14 +101,10 @@ fun TasksScreen(nav: NavController) {
         },
         floatingActionButton = {
             StaggerIn(index = 9, startOffsetY = 20.dp, startScale = 0.85f) {
-                FloatingActionButton(
+                ExpandableAddFab(
                     onClick = { nav.navigate("taskEdit/0") },
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = Color.White,
-                    shape = RoundedCornerShape(20.dp)
-                ) {
-                    Icon(Icons.Filled.Add, contentDescription = "New task")
-                }
+                    fullText = "新建任务",
+                )
             }
         }
     ) { pad ->
@@ -190,6 +198,96 @@ fun TasksScreen(nav: NavController) {
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+// ── 展开式添加 FAB：逐步"长出来"每个字 ──
+@Composable
+private fun ExpandableAddFab(
+    onClick: () -> Unit,
+    fullText: String,
+) {
+    // shownChars: 已解码的汉字数
+    // scrambling: 正在为下一个字显示乱码
+    var shownChars by remember { mutableIntStateOf(0) }
+    var scrambling by remember { mutableStateOf(false) }
+    var scrambleSeed by remember { mutableIntStateOf(0) }
+
+    // 乱码跳动：每 40ms 换一次（比上一版快）
+    LaunchedEffect(Unit) {
+        while (true) {
+            scrambleSeed++
+            delay(40)
+        }
+    }
+
+    // 主流程：一个字一个字"长出来"
+    LaunchedEffect(Unit) {
+        delay(700)  // 让圆形 + 先被看到
+        for (i in fullText.indices) {
+            // 阶段 1：撑长 + 显示一个乱码位
+            scrambling = true
+            delay(320)
+            // 阶段 2：破解 → 汉字
+            shownChars = i + 1
+            scrambling = false
+            delay(220)  // 停顿一下，让汉字被看清
+        }
+    }
+
+    // 宽度：圆形 56dp + 每个可见字符 CharWidthDp
+    val visibleChars = if (scrambling) shownChars + 1 else shownChars
+    val targetWidth = 56.dp + CharWidthDp * visibleChars
+    val widthDp by animateDpAsState(
+        targetValue = targetWidth,
+        animationSpec = spring(
+            dampingRatio = 0.7f,
+            stiffness = Spring.StiffnessMediumLow,
+        ),
+        label = "fabWidth",
+    )
+
+    // 显示文本：已解码的汉字 + 正在破解的那一位乱码
+    val displayText = buildString {
+        append(fullText.take(shownChars))
+        if (scrambling && shownChars < fullText.length) {
+            val idx = ((scrambleSeed * 7 + shownChars * 3) % ScramblePool.size + ScramblePool.size) % ScramblePool.size
+            append(ScramblePool[idx])
+        }
+    }
+
+    Box(
+        modifier = Modifier
+            .height(56.dp)
+            .width(widthDp)
+            .clip(RoundedCornerShape(50))
+            .background(Brush.horizontalGradient(listOf(OrangeStart, OrangeEnd)))
+            .clickable(onClick = onClick),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxHeight()
+                .padding(start = 17.dp, end = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                Icons.Filled.Add,
+                contentDescription = fullText,
+                tint = Color.White,
+                modifier = Modifier.size(22.dp),
+            )
+            if (displayText.isNotEmpty()) {
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    text = displayText,
+                    color = Color.White,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Medium,
+                    letterSpacing = 2.sp,
+                    fontFamily = FontFamily.Monospace,
+                )
             }
         }
     }

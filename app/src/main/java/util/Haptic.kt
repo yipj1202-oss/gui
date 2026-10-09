@@ -25,7 +25,18 @@ object Haptic {
     fun buzz(context: Context, durationMs: Long = 400) {
         tap(context, durationMs)
     }
-
+    /** 单次强震，短促有力（一次过，非连续） */
+    fun strongTap(context: Context, durationMs: Long = 120) {
+        val vib = getVibrator(context) ?: return
+        if (!vib.hasVibrator()) return
+        val hasAmp = vib.hasAmplitudeControl()
+        vib.vibrate(
+            VibrationEffect.createOneShot(
+                durationMs,
+                if (hasAmp) 255 else VibrationEffect.DEFAULT_AMPLITUDE
+            )
+        )
+    }
     /** 双击振动：短-停-短，用于「该休息了 / 该专注了」 */
     fun doubleTap(context: Context) {
         val vib = getVibrator(context) ?: return

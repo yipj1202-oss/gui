@@ -19,7 +19,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -91,10 +90,8 @@ fun HomeScreen(nav: NavController) {
             selfCheckAnim.snapTo(0f)
             kotlinx.coroutines.delay(380)
 
-            // ── 启动：短震
             if (app.prefs.vibrate) Haptic.tap(ctx)
 
-            // 冲劲：560ms 从 0 拉到 110%
             selfCheckAnim.animateTo(
                 targetValue = 1.10f,
                 animationSpec = keyframes {
@@ -105,25 +102,20 @@ fun HomeScreen(nav: NavController) {
                 }
             )
 
-            // ── 撞顶：双击（最有"撞击感"的一下）
             if (app.prefs.vibrate) Haptic.doubleTap(ctx)
 
-            // 撞击回弹（快速）
             selfCheckAnim.animateTo(
                 targetValue = 1f,
                 animationSpec = tween(130, easing = FastOutSlowInEasing)
             )
 
-            // 顶峰短停
             kotlinx.coroutines.delay(160)
 
-            // 原路倒回（提速）
             selfCheckAnim.animateTo(
                 targetValue = 0f,
                 animationSpec = tween(420, easing = FastOutSlowInEasing)
             )
 
-            // ── 回位：短震
             if (app.prefs.vibrate) Haptic.tap(ctx)
 
             kotlinx.coroutines.delay(80)
@@ -173,27 +165,21 @@ fun HomeScreen(nav: NavController) {
         containerColor = bgColor,
         topBar = {
             TopAppBar(
-                title = {
-                    StaggerIn(index = 0, startOffsetY = 14.dp) {
-                        Text(
-                            text = "晷",
-                            fontSize = 26.sp,
-                            fontWeight = FontWeight.Thin,
-                            letterSpacing = 2.sp,
-                            style = MaterialTheme.typography.titleLarge.copy(
-                                brush = Brush.linearGradient(listOf(OrangeStart, OrangeEnd))
-                            )
-                        )
-                    }
-                },
+                // 左上角标题留空
+                title = {},
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
                 actions = {
-                    StaggerIn(index = 1, startOffsetY = 14.dp) {
+                    // 右上角：晷（进设置）
+                    StaggerIn(index = 0, startOffsetY = 14.dp) {
                         IconButton(onClick = { nav.navigate("settings") }) {
-                            Icon(
-                                Icons.Filled.Settings,
-                                contentDescription = stringResource(R.string.home_settings),
-                                tint = textSub
+                            Text(
+                                text = "晷",
+                                fontSize = 26.sp,
+                                fontWeight = FontWeight.Thin,
+                                letterSpacing = 2.sp,
+                                style = TextStyle(
+                                    brush = Brush.linearGradient(listOf(OrangeStart, OrangeEnd))
+                                )
                             )
                         }
                     }
@@ -209,13 +195,13 @@ fun HomeScreen(nav: NavController) {
         ) {
             Spacer(Modifier.height(8.dp))
 
-            StaggerIn(index = 2) {
+            StaggerIn(index = 1) {
                 StatusLine(snap.state, snap.isPaused, isDark)
             }
 
             Spacer(Modifier.height(16.dp))
 
-            StaggerIn(index = 3) {
+            StaggerIn(index = 2) {
                 PresetLine(
                     name = app.repo.engine.preset.name,
                     focusMin = app.repo.engine.preset.focusMin,
@@ -227,7 +213,7 @@ fun HomeScreen(nav: NavController) {
 
             Spacer(Modifier.height(36.dp))
 
-            StaggerIn(index = 4, startOffsetX = 40.dp) {
+            StaggerIn(index = 3, startOffsetX = 40.dp) {
                 DashboardRing(
                     snap = snap,
                     isDark = isDark,
@@ -240,7 +226,7 @@ fun HomeScreen(nav: NavController) {
             Spacer(Modifier.height(20.dp))
 
             if (snap.taskId != null) {
-                StaggerIn(index = 5) {
+                StaggerIn(index = 4) {
                     Text(
                         stringResource(
                             R.string.home_focusing_on,
@@ -255,7 +241,7 @@ fun HomeScreen(nav: NavController) {
 
             Spacer(Modifier.height(28.dp))
 
-            StaggerIn(index = 6) {
+            StaggerIn(index = 5) {
                 ControlButtons(
                     snap = snap,
                     onStart = { showTaskSheet = true },
@@ -268,7 +254,7 @@ fun HomeScreen(nav: NavController) {
 
             Spacer(Modifier.weight(1f))
 
-            StaggerIn(index = 7, startOffsetY = 16.dp) {
+            StaggerIn(index = 6, startOffsetY = 16.dp) {
                 Text(
                     text = stringResource(
                         R.string.home_today_summary,
