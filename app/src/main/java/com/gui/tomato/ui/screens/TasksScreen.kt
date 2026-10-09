@@ -41,10 +41,8 @@ private val DarkTextMain = Color(0xFFFFFFFF)
 private val OrangeStart = Color(0xFFE4572E)
 private val OrangeEnd = Color(0xFFFFA35C)
 
-// 乱码池：符号 + 少量片假名
 private val ScramblePool = "!@#$%&*+-=?<>[]{}|/\\~^;:アイウエオカキ".toList()
 
-// 每个字占的额外宽度
 private val CharWidthDp = 22.dp
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -103,7 +101,7 @@ fun TasksScreen(nav: NavController) {
             StaggerIn(index = 9, startOffsetY = 20.dp, startScale = 0.85f) {
                 ExpandableAddFab(
                     onClick = { nav.navigate("taskEdit/0") },
-                    fullText = "新建任务",
+                    fullText = stringResource(R.string.task_new),
                 )
             }
         }
@@ -120,7 +118,7 @@ fun TasksScreen(nav: NavController) {
                 ) {
                     StaggerIn(index = 2) {
                         Text(
-                            "暂无任务，点右下角 + 添加",
+                            stringResource(R.string.task_empty_hint),
                             color = textSub,
                             style = MaterialTheme.typography.bodyMedium
                         )
@@ -138,7 +136,7 @@ fun TasksScreen(nav: NavController) {
                         item {
                             StaggerIn(index = 2) {
                                 Text(
-                                    "进行中",
+                                    stringResource(R.string.task_section_active),
                                     style = MaterialTheme.typography.labelLarge,
                                     color = textSub,
                                     modifier = Modifier.padding(start = 4.dp, top = 8.dp, bottom = 4.dp)
@@ -168,7 +166,7 @@ fun TasksScreen(nav: NavController) {
                         item {
                             StaggerIn(index = 3 + activeList.size) {
                                 Text(
-                                    "已完成",
+                                    stringResource(R.string.task_section_done),
                                     style = MaterialTheme.typography.labelLarge,
                                     color = textSub,
                                     modifier = Modifier.padding(start = 4.dp, top = 16.dp, bottom = 4.dp)
@@ -209,35 +207,32 @@ private fun ExpandableAddFab(
     onClick: () -> Unit,
     fullText: String,
 ) {
-    // shownChars: 已解码的汉字数
-    // scrambling: 正在为下一个字显示乱码
     var shownChars by remember { mutableIntStateOf(0) }
     var scrambling by remember { mutableStateOf(false) }
     var scrambleSeed by remember { mutableIntStateOf(0) }
 
-    // 乱码跳动：每 40ms 换一次（比上一版快）
-    LaunchedEffect(Unit) {
+    LaunchedEffect(fullText) {
+        // fullText 变化时重置
+        shownChars = 0
+        scrambling = false
+
         while (true) {
             scrambleSeed++
             delay(40)
         }
     }
 
-    // 主流程：一个字一个字"长出来"
-    LaunchedEffect(Unit) {
-        delay(700)  // 让圆形 + 先被看到
+    LaunchedEffect(fullText) {
+        delay(700)
         for (i in fullText.indices) {
-            // 阶段 1：撑长 + 显示一个乱码位
             scrambling = true
             delay(320)
-            // 阶段 2：破解 → 汉字
             shownChars = i + 1
             scrambling = false
-            delay(220)  // 停顿一下，让汉字被看清
+            delay(220)
         }
     }
 
-    // 宽度：圆形 56dp + 每个可见字符 CharWidthDp
     val visibleChars = if (scrambling) shownChars + 1 else shownChars
     val targetWidth = 56.dp + CharWidthDp * visibleChars
     val widthDp by animateDpAsState(
@@ -249,7 +244,6 @@ private fun ExpandableAddFab(
         label = "fabWidth",
     )
 
-    // 显示文本：已解码的汉字 + 正在破解的那一位乱码
     val displayText = buildString {
         append(fullText.take(shownChars))
         if (scrambling && shownChars < fullText.length) {

@@ -1,8 +1,50 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Gui</string>
-    <string name="settings_title">Settings</string>
+
+    <!-- Common -->
+    <string name="common_create">Create</string>
+    <string name="common_cancel">Cancel</string>
     <string name="action_back">Back</string>
+
+    <!-- Navigation -->
+    <string name="nav_home">Home</string>
+    <string name="nav_tasks">Tasks</string>
+    <string name="nav_pomodoro">Pomodoro</string>
+    <string name="nav_calendar">Calendar</string>
+    <string name="nav_stats">Stats</string>
+
+    <!-- Pomodoro state -->
+    <string name="state_ready">READY</string>
+    <string name="state_focus">FOCUS</string>
+    <string name="state_short_break">SHORT BREAK</string>
+    <string name="state_long_break">LONG BREAK</string>
+    <string name="state_paused">PAUSED</string>
+
+    <!-- Settings -->
+    <string name="settings_title">Settings</string>
+    <string name="settings_header">Settings</string>
+    <string name="settings_items_count">07 ITEMS</string>
+    <string name="settings_group_appearance">Appearance</string>
+    <string name="settings_group_appearance_sub">APPEARANCE</string>
+    <string name="settings_group_alerts">Alerts</string>
+    <string name="settings_group_alerts_sub">ALERTS</string>
+    <string name="settings_group_data">Data</string>
+    <string name="settings_group_data_sub">DATA</string>
+    <string name="settings_card_preset">Presets</string>
+    <string name="settings_card_preset_sub">PRESET MANAGE</string>
+    <string name="settings_card_theme">Theme</string>
+    <string name="settings_card_theme_sub">THEME</string>
+    <string name="settings_card_language">Language</string>
+    <string name="settings_card_language_sub">LANGUAGE</string>
+    <string name="settings_card_notify">Notifications</string>
+    <string name="settings_card_notify_sub">NOTIFICATION</string>
+    <string name="settings_card_vibrate">Vibrate</string>
+    <string name="settings_card_vibrate_sub">VIBRATE</string>
+    <string name="settings_card_export">Export Backup</string>
+    <string name="settings_card_export_sub">EXPORT BACKUP</string>
+    <string name="settings_card_import">Import Backup</string>
+    <string name="settings_card_import_sub">IMPORT BACKUP</string>
     <string name="settings_preset_manage">Pomodoro Presets</string>
     <string name="settings_preset_manage_action">New / Edit ❯</string>
     <string name="settings_theme">Theme</string>
@@ -16,9 +58,8 @@
     <string name="settings_export_backup">Export Backup (.guiback)</string>
     <string name="settings_import_backup">Import Backup</string>
     <string name="settings_footer">Gui · Measure time, achieve deeds</string>
-    <string name="nav_home">Home</string>
-    <string name="nav_tasks">Tasks</string>
-    <string name="nav_stats">Stats</string>
+
+    <!-- Home -->
     <string name="home_title">Gui</string>
     <string name="home_settings">Settings</string>
     <string name="home_preset_prefix">Preset: </string>
@@ -39,12 +80,15 @@
     <string name="home_choose_task">Choose Task</string>
     <string name="home_no_task">No task (focus directly)</string>
     <string name="home_not_started">Not started</string>
+
+    <!-- Tasks -->
     <string name="task_title">Tasks</string>
+    <string name="task_new">New Task</string>
     <string name="task_new_desc">New Task</string>
+    <string name="task_edit">Edit Task</string>
     <string name="task_section_active">Active</string>
     <string name="task_section_done">Completed</string>
-    <string name="task_new">New Task</string>
-    <string name="task_edit">Edit Task</string>
+    <string name="task_empty_hint">No tasks yet. Tap + to add.</string>
     <string name="task_field_title">Title</string>
     <string name="task_field_note">Note</string>
     <string name="task_save">Save</string>
@@ -52,6 +96,26 @@
     <string name="task_start_pomodoro">Start Pomodoro</string>
     <string name="task_delete_desc">Delete</string>
     <string name="task_image_count">%1$d images</string>
+    <string name="task_edit_subtitle_new">NEW TASK</string>
+    <string name="task_edit_subtitle_edit">EDIT TASK</string>
+    <string name="task_detail_subtitle">TASK DETAIL</string>
+
+    <!-- Calendar -->
+    <string name="calendar_prev_month">Previous month</string>
+    <string name="calendar_next_month">Next month</string>
+    <string name="calendar_title_format">%2$d / %1$d</string>
+    <string name="calendar_new_task_title">%1$d/%2$d · New Task</string>
+    <string name="calendar_delete_title">Delete Task</string>
+    <string name="calendar_delete_message">Delete "%1$s"?</string>
+    <string name="calendar_weekday_1">M</string>
+    <string name="calendar_weekday_2">T</string>
+    <string name="calendar_weekday_3">W</string>
+    <string name="calendar_weekday_4">T</string>
+    <string name="calendar_weekday_5">F</string>
+    <string name="calendar_weekday_6">S</string>
+    <string name="calendar_weekday_7">S</string>
+
+    <!-- Stats -->
     <string name="stats_title">Statistics</string>
     <string name="stats_today">Today</string>
     <string name="stats_week">This Week</string>
@@ -64,8 +128,19 @@
     <string name="stats_hour_min_format">%1$d min</string>
     <string name="stats_legend_focus_min">Focus min</string>
     <string name="stats_legend_trend">Trend</string>
+    <string name="stats_hour_suffix">h</string>
+    <string name="stats_task_deleted">Deleted</string>
+    <string name="stats_task_unspecified">Unspecified</string>
+    <string name="stats_cursor">CURSOR</string>
+    <string name="stats_cursor_focus">FOCUS</string>
+
+    <!-- Splash -->
     <string name="splash_title">Gui</string>
     <string name="splash_slogan">Measure time, achieve deeds</string>
+    <string name="splash_slogan_line1">Measure time</string>
+    <string name="splash_slogan_line2">Achieve deeds</string>
+
+    <!-- Preset edit -->
     <string name="preset_title_new">New Preset</string>
     <string name="preset_field_name">Preset Name</string>
     <string name="preset_field_focus">Focus (min)</string>
@@ -74,7 +149,6 @@
     <string name="preset_field_long_break_min">Long Break (min)</string>
     <string name="preset_checkbox_default">Set as default preset</string>
     <string name="preset_save">Save Preset</string>
-    <string name="stats_hour_suffix">h</string>
-    <string name="stats_task_deleted">Deleted</string>
-    <string name="stats_task_unspecified">Unspecified</string>
+    <string name="settings_import_toast">Import: %1$s</string>
+    <string name="task_image_remove">Remove</string>
 </resources>

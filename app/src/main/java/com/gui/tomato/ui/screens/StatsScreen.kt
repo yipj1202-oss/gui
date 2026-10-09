@@ -40,8 +40,8 @@ private val DarkTextSub = Color(0xFF8A8A8A)
 private val DarkTextMain = Color(0xFFFFFFFF)
 private val OrangeStart = Color(0xFFE4572E)
 
-// ── 折线趋势色（想换别的改这里）──
-private val TrendColor = Color(0xFFFFD08A)   // 暖金
+// 折线趋势色（想换别的改这里）
+private val TrendColor = Color(0xFFFFD08A)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -73,7 +73,6 @@ fun StatsScreen(nav: NavController) {
 
     val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
     val bgColor = if (isDark) DarkBg else MaterialTheme.colorScheme.background
-    val cardColor = if (isDark) DarkCard else Color.White
     val textMain = if (isDark) DarkTextMain else MaterialTheme.colorScheme.onBackground
     val textSub = if (isDark) DarkTextSub else MaterialTheme.colorScheme.outline
     val trackColor = if (isDark) DarkTrack else Color(0xFFEAEAEA)
@@ -83,6 +82,19 @@ fun StatsScreen(nav: NavController) {
     val secondary = TrendColor
 
     val maxTask = rows.maxOfOrNull { it.focusMin }?.takeIf { it > 0 } ?: 1
+
+    val labelToday = stringResource(R.string.stats_today)
+    val labelWeek = stringResource(R.string.stats_week)
+    val labelMonth = stringResource(R.string.stats_month)
+    val labelHourly = stringResource(R.string.stats_hourly_distribution)
+    val labelNoHourly = stringResource(R.string.stats_no_hourly_data)
+    val labelByTask = stringResource(R.string.stats_task_distribution)
+    val labelNoFocus = stringResource(R.string.stats_no_focus_data)
+    val labelCursor = stringResource(R.string.stats_cursor)
+    val labelCursorFocus = stringResource(R.string.stats_cursor_focus)
+    val labelLegendFocus = stringResource(R.string.stats_legend_focus_min)
+    val labelLegendTrend = stringResource(R.string.stats_legend_trend)
+    val hourSuffix = stringResource(R.string.stats_hour_suffix)
 
     Scaffold(
         containerColor = bgColor,
@@ -113,7 +125,7 @@ fun StatsScreen(nav: NavController) {
             // ── 范围选择 ──
             StaggerIn(index = 1, startOffsetY = 14.dp) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    val labels = listOf("今天", "本周", "本月")
+                    val labels = listOf(labelToday, labelWeek, labelMonth)
                     labels.forEachIndexed { i, l ->
                         FilterChip(
                             selected = range == i,
@@ -131,14 +143,14 @@ fun StatsScreen(nav: NavController) {
 
             Spacer(Modifier.height(20.dp))
 
-            // ── 时段分布（上） ──
+            // ── 时段分布 ──
             StaggerIn(index = 2) {
-                Text("时段分布", style = MaterialTheme.typography.titleMedium, color = textMain)
+                Text(labelHourly, style = MaterialTheme.typography.titleMedium, color = textMain)
             }
             Spacer(Modifier.height(12.dp))
             if (hours.isEmpty() || hours.all { it.focusMin == 0 }) {
                 StaggerIn(index = 3) {
-                    EmptyHint("暂无数值数据", textSub)
+                    EmptyHint(labelNoHourly, textSub)
                 }
             } else {
                 StaggerIn(
@@ -157,24 +169,27 @@ fun StatsScreen(nav: NavController) {
                         onCursorChange = { cursorHour = it },
                         textMain = textMain,
                         textSub = textSub,
+                        labelCursor = labelCursor,
+                        labelCursorFocus = labelCursorFocus,
+                        hourSuffix = hourSuffix,
                     )
                 }
                 Spacer(Modifier.height(12.dp))
                 StaggerIn(index = 4) {
-                    Legend(primary, secondary, textSub)
+                    Legend(primary, secondary, textSub, labelLegendFocus, labelLegendTrend)
                 }
             }
 
             Spacer(Modifier.height(28.dp))
 
-            // ── 按任务分布（下） ──
+            // ── 按任务分布 ──
             StaggerIn(index = 5) {
-                Text("按任务分布", style = MaterialTheme.typography.titleMedium, color = textMain)
+                Text(labelByTask, style = MaterialTheme.typography.titleMedium, color = textMain)
             }
             Spacer(Modifier.height(12.dp))
             if (rows.isEmpty() || rows.all { it.focusMin == 0 }) {
                 StaggerIn(index = 6) {
-                    EmptyHint("暂无专注数据", textSub)
+                    EmptyHint(labelNoFocus, textSub)
                 }
             } else {
                 rows.take(10).forEachIndexed { idx, r ->
@@ -249,7 +264,7 @@ private fun TaskBarRow(
         }
         Spacer(Modifier.width(8.dp))
         Text(
-            "${r.focusMin}分 · ${r.pomodoros}个",
+            stringResource(R.string.stats_task_row_format, r.focusMin, r.pomodoros),
             style = MaterialTheme.typography.bodySmall,
             color = textSub,
             modifier = Modifier.width(78.dp)
@@ -269,6 +284,9 @@ private fun HourBarChart(
     onCursorChange: (Int?) -> Unit,
     textMain: Color,
     textSub: Color,
+    labelCursor: String,
+    labelCursorFocus: String,
+    hourSuffix: String,
 ) {
     val textMeasurer = rememberTextMeasurer()
     val hourMap = remember(hours) { hours.associateBy { it.hour } }
@@ -296,7 +314,7 @@ private fun HourBarChart(
         ) {
             Column {
                 Text(
-                    text = "游标",
+                    text = labelCursor,
                     fontSize = 9.sp,
                     fontWeight = FontWeight.Light,
                     letterSpacing = 3.sp,
@@ -313,7 +331,7 @@ private fun HourBarChart(
             }
             Column(horizontalAlignment = Alignment.End) {
                 Text(
-                    text = "专注",
+                    text = labelCursorFocus,
                     fontSize = 9.sp,
                     fontWeight = FontWeight.Light,
                     letterSpacing = 3.sp,
@@ -459,10 +477,10 @@ private fun HourBarChart(
                 }
             }
 
-            // X 轴小时标
+            // X 轴小时标（拼接 hourSuffix，如 "12时" / "12h"）
             listOf(0, 6, 12, 18, 23).forEach { hour ->
                 val x = leftPad + hour * slotW + slotW / 2f
-                val layout = textMeasurer.measure("${hour}时", labelStyle)
+                val layout = textMeasurer.measure("$hour$hourSuffix", labelStyle)
                 drawText(
                     textLayoutResult = layout,
                     color = labelColor,
@@ -499,7 +517,13 @@ private fun HourBarChart(
 }
 
 @Composable
-private fun Legend(barColor: Color, lineColor: Color, textColor: Color) {
+private fun Legend(
+    barColor: Color,
+    lineColor: Color,
+    textColor: Color,
+    labelFocusMin: String,
+    labelTrend: String,
+) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.Center,
@@ -512,7 +536,7 @@ private fun Legend(barColor: Color, lineColor: Color, textColor: Color) {
             )
         }
         Spacer(Modifier.width(6.dp))
-        Text("专注分钟", style = MaterialTheme.typography.labelSmall, color = textColor)
+        Text(labelFocusMin, style = MaterialTheme.typography.labelSmall, color = textColor)
         Spacer(Modifier.width(20.dp))
         Canvas(modifier = Modifier.size(16.dp)) {
             drawLine(
@@ -524,6 +548,6 @@ private fun Legend(barColor: Color, lineColor: Color, textColor: Color) {
             drawCircle(color = lineColor, radius = 3.dp.toPx(), center = Offset(size.width / 2f, size.height / 2f))
         }
         Spacer(Modifier.width(6.dp))
-        Text("趋势", style = MaterialTheme.typography.labelSmall, color = textColor)
+        Text(labelTrend, style = MaterialTheme.typography.labelSmall, color = textColor)
     }
 }

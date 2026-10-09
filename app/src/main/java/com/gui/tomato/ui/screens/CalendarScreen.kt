@@ -20,6 +20,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -27,6 +28,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.gui.tomato.GuiApp
+import com.gui.tomato.R
 import com.gui.tomato.data.entities.Task
 import com.gui.tomato.ui.components.StaggerIn
 import kotlinx.coroutines.launch
@@ -39,7 +41,17 @@ private val DarkCellEmpty = Color(0xFF0F0F0F)
 private val DarkTextSub = Color(0xFF8A8A8A)
 private val DarkTextMain = Color(0xFFFFFFFF)
 private val OrangeStart = Color(0xFFE4572E)
-private val WeekLabels = listOf("一", "二", "三", "四", "五", "六", "日")
+
+// 星期表头用字符串资源 ID，运行时再 stringResource
+private val WeekLabelRes = listOf(
+    R.string.calendar_weekday_1,
+    R.string.calendar_weekday_2,
+    R.string.calendar_weekday_3,
+    R.string.calendar_weekday_4,
+    R.string.calendar_weekday_5,
+    R.string.calendar_weekday_6,
+    R.string.calendar_weekday_7,
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -113,7 +125,7 @@ fun CalendarScreen(nav: NavController) {
                 title = {
                     StaggerIn(index = 0, startOffsetY = 14.dp) {
                         Text(
-                            text = "$year 年 ${month + 1} 月",
+                            text = stringResource(R.string.calendar_title_format, year, month + 1),
                             fontSize = 22.sp,
                             fontWeight = FontWeight.Thin,
                             letterSpacing = 4.sp,
@@ -131,7 +143,11 @@ fun CalendarScreen(nav: NavController) {
                                 }
                                 selectedDay = -1
                             }) {
-                                Icon(Icons.Filled.ChevronLeft, contentDescription = "上个月", tint = textSub)
+                                Icon(
+                                    Icons.Filled.ChevronLeft,
+                                    contentDescription = stringResource(R.string.calendar_prev_month),
+                                    tint = textSub
+                                )
                             }
                             IconButton(onClick = {
                                 currentMonth = (currentMonth.clone() as Calendar).apply {
@@ -139,7 +155,11 @@ fun CalendarScreen(nav: NavController) {
                                 }
                                 selectedDay = -1
                             }) {
-                                Icon(Icons.Filled.ChevronRight, contentDescription = "下个月", tint = textSub)
+                                Icon(
+                                    Icons.Filled.ChevronRight,
+                                    contentDescription = stringResource(R.string.calendar_next_month),
+                                    tint = textSub
+                                )
                             }
                         }
                     }
@@ -157,7 +177,10 @@ fun CalendarScreen(nav: NavController) {
                     contentColor = Color.White,
                     shape = RoundedCornerShape(20.dp)
                 ) {
-                    Icon(Icons.Filled.Add, contentDescription = "新建任务")
+                    Icon(
+                        Icons.Filled.Add,
+                        contentDescription = stringResource(R.string.task_new_desc)
+                    )
                 }
             }
         }
@@ -171,9 +194,9 @@ fun CalendarScreen(nav: NavController) {
             // 星期表头
             StaggerIn(index = 2, startOffsetY = 10.dp) {
                 Row(Modifier.fillMaxWidth().padding(bottom = 6.dp)) {
-                    WeekLabels.forEach { label ->
+                    WeekLabelRes.forEach { resId ->
                         Text(
-                            text = label,
+                            text = stringResource(resId),
                             modifier = Modifier.weight(1f),
                             textAlign = TextAlign.Center,
                             fontSize = 11.sp,
@@ -248,7 +271,7 @@ fun CalendarScreen(nav: NavController) {
             containerColor = if (isDark) DarkCard else MaterialTheme.colorScheme.surface,
             title = {
                 Text(
-                    "${month + 1} 月 ${selectedDay} 日 · 新建任务",
+                    stringResource(R.string.calendar_new_task_title, month + 1, selectedDay),
                     fontWeight = FontWeight.Light,
                     letterSpacing = 2.sp
                 )
@@ -257,7 +280,7 @@ fun CalendarScreen(nav: NavController) {
                 OutlinedTextField(
                     value = newTitle,
                     onValueChange = { newTitle = it },
-                    label = { Text("任务标题") },
+                    label = { Text(stringResource(R.string.task_field_title)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -294,7 +317,7 @@ fun CalendarScreen(nav: NavController) {
                         }
                     }
                 ) {
-                    Text("创建", color = OrangeStart)
+                    Text(stringResource(R.string.common_create), color = OrangeStart)
                 }
             },
             dismissButton = {
@@ -302,7 +325,7 @@ fun CalendarScreen(nav: NavController) {
                     newTitle = ""
                     showAddDialog = false
                 }) {
-                    Text("取消")
+                    Text(stringResource(R.string.common_cancel))
                 }
             }
         )
@@ -313,19 +336,25 @@ fun CalendarScreen(nav: NavController) {
         AlertDialog(
             onDismissRequest = { taskToDelete = null },
             containerColor = if (isDark) DarkCard else MaterialTheme.colorScheme.surface,
-            title = { Text("删除任务", fontWeight = FontWeight.Light, letterSpacing = 2.sp) },
-            text = { Text("确定删除「${task.title}」？") },
+            title = {
+                Text(
+                    stringResource(R.string.calendar_delete_title),
+                    fontWeight = FontWeight.Light,
+                    letterSpacing = 2.sp
+                )
+            },
+            text = { Text(stringResource(R.string.calendar_delete_message, task.title)) },
             confirmButton = {
                 TextButton(onClick = {
                     scope.launch { app.db.taskDao().delete(task.id) }
                     taskToDelete = null
                 }) {
-                    Text("删除", color = OrangeStart)
+                    Text(stringResource(R.string.task_delete_desc), color = OrangeStart)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { taskToDelete = null }) {
-                    Text("取消")
+                    Text(stringResource(R.string.common_cancel))
                 }
             }
         )
@@ -381,7 +410,6 @@ private fun DayCell(
         )
         Spacer(Modifier.height(2.dp))
 
-        // 最多显示 3 个任务
         tasks.take(3).forEach { task ->
             Text(
                 text = task.title,

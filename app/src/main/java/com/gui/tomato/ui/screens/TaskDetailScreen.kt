@@ -98,7 +98,7 @@ fun TaskDetailScreen(nav: NavController, taskId: Long) {
                 ) {
                     CircleIconButton(
                         icon = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "返回",
+                        contentDescription = stringResource(R.string.action_back),
                         tint = textPrimary,
                         bg = cardColor,
                     ) { nav.popBackStack() }
@@ -138,7 +138,7 @@ fun TaskDetailScreen(nav: NavController, taskId: Long) {
             Spacer(Modifier.height(8.dp))
             StaggerIn(index = 2, startOffsetY = 10.dp) {
                 Text(
-                    text = "TASK DETAIL",
+                    text = stringResource(R.string.task_detail_subtitle),
                     fontSize = 10.sp,
                     fontWeight = FontWeight.Light,
                     letterSpacing = 5.sp,

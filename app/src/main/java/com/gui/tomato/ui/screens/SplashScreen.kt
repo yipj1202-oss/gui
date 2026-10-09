@@ -33,7 +33,16 @@ import kotlinx.coroutines.launch
 import kotlin.math.PI
 import kotlin.math.sin
 
-private val SplashBg = Color(0xFF0D0D0D)
+// 深色配色
+private val DarkBg = Color(0xFF0D0D0D)
+private val DarkLine = Color.White
+private val DarkSlogan = Color.White
+
+// 浅色配色
+private val LightBg = Color(0xFFF5F1EA)
+private val LightLine = Color(0xFF0D0D0D)
+private val LightSlogan = Color(0xFF1A1A1A)
+
 private val OrangeStart = Color(0xFFE4572E)
 private val OrangeEnd = Color(0xFFFFA35C)
 
@@ -48,11 +57,16 @@ fun SplashScreen() {
     val app = ctx.applicationContext as GuiApp
     val hapticsEnabled = app.prefs.vibrate
 
-    // 晷字
+    // ── 跟随 App 内设置的主题：prefs.theme（0=浅色，1=深色） ──
+    val isDark = app.prefs.theme == 1
+    val bgColor = if (isDark) DarkBg else LightBg
+    val sloganColor = if (isDark) DarkSlogan else LightSlogan
+    val lineColor = if (isDark) DarkLine else LightLine
+
+    // 动画驱动
     val titleAlpha = remember { Animatable(0f) }
     val titleScale = remember { Animatable(1.15f) }
     val titleShake = remember { Animatable(0f) }
-    // 横线 / slogan
     val lineAlpha = remember { Animatable(0f) }
     val sloganFade = remember { Animatable(1f) }
 
@@ -74,16 +88,16 @@ fun SplashScreen() {
     LaunchedEffect(Unit) {
         delay(180)
 
-        // 1) 晷字浮现（不振动）
+        // 1) 晷字浮现
         launch { titleAlpha.animateTo(1f, tween(320, easing = FastOutSlowInEasing)) }
         titleScale.animateTo(0.98f, tween(400, easing = FastOutSlowInEasing))
 
-        // 2) 横线浮现（晷字保持显示）
+        // 2) 横线浮现
         delay(280)
         lineAlpha.animateTo(1f, tween(140, easing = FastOutSlowInEasing))
         delay(60)
 
-        // 3) slogan1 逐字生成（每字伴随一次轻震）
+        // 3) slogan1 逐字生成
         for (i in SLOGAN1.indices) {
             s1Scrambling = true
             delay(50)
@@ -94,7 +108,7 @@ fun SplashScreen() {
         }
         delay(40)
 
-        // 4) slogan2 逐字生成（每字伴随一次轻震）
+        // 4) slogan2 逐字生成
         for (i in SLOGAN2.indices) {
             s2Scrambling = true
             delay(50)
@@ -108,7 +122,7 @@ fun SplashScreen() {
         delay(420)
 
         // 6) 晷字一震 + 手机强震
-        if (hapticsEnabled)         if (hapticsEnabled) Haptic.strongTap(ctx, 240)
+        if (hapticsEnabled) Haptic.strongTap(ctx, 120)
         titleShake.animateTo(
             targetValue = 1f,
             animationSpec = keyframes {
@@ -119,7 +133,7 @@ fun SplashScreen() {
             }
         )
 
-        // 7) 晷字 / 横线 / slogan 同步淡出
+        // 7) 同步淡出
         delay(120)
         launch { titleAlpha.animateTo(0f, tween(320, easing = FastOutSlowInEasing)) }
         launch { sloganFade.animateTo(0f, tween(320, easing = FastOutSlowInEasing)) }
@@ -144,7 +158,7 @@ fun SplashScreen() {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(SplashBg),
+            .background(bgColor),
         contentAlignment = Alignment.Center
     ) {
         Column(
@@ -175,7 +189,7 @@ fun SplashScreen() {
                     .width(48.dp)
                     .height(1.dp)
                     .graphicsLayer { alpha = lineAlpha.value }
-                    .background(Color.White.copy(alpha = 0.28f))
+                    .background(lineColor.copy(alpha = 0.28f))
             )
 
             Spacer(Modifier.height(26.dp))
@@ -186,6 +200,7 @@ fun SplashScreen() {
                 scrambling = s1Scrambling,
                 scrambleSeed = scrambleSeed,
                 fade = sloganFade.value,
+                baseColor = sloganColor,
             )
 
             Spacer(Modifier.height(12.dp))
@@ -196,6 +211,7 @@ fun SplashScreen() {
                 scrambling = s2Scrambling,
                 scrambleSeed = scrambleSeed,
                 fade = sloganFade.value,
+                baseColor = sloganColor,
             )
         }
 
@@ -225,6 +241,7 @@ private fun SloganLine(
     scrambling: Boolean,
     scrambleSeed: Int,
     fade: Float,
+    baseColor: Color,
 ) {
     val displayText = buildString {
         append(text.take(shownChars))
@@ -238,7 +255,7 @@ private fun SloganLine(
         fontSize = 18.sp,
         fontWeight = FontWeight.Light,
         letterSpacing = 16.sp,
-        color = Color.White.copy(alpha = 0.88f * fade),
+        color = baseColor.copy(alpha = 0.88f * fade),
         fontFamily = FontFamily.Monospace,
     )
 }

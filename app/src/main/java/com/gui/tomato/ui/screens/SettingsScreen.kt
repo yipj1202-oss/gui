@@ -51,10 +51,13 @@ fun SettingsScreen(nav: NavController) {
     var notify by remember { mutableStateOf(prefs.notifyEnabled) }
     var vibrate by remember { mutableStateOf(prefs.vibrate) }
 
+    // Toast 模板（Composable 里取好）
+    val importToastTemplate = stringResource(R.string.settings_import_toast)
+
     val import = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
             val res = app.backupImport(uri)
-            Toast.makeText(ctx, "导入: $res", Toast.LENGTH_SHORT).show()
+            Toast.makeText(ctx, importToastTemplate.format(res), Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -90,7 +93,7 @@ fun SettingsScreen(nav: NavController) {
             Column(Modifier.padding(horizontal = 28.dp)) {
                 StaggerIn(index = 1, startOffsetY = 14.dp) {
                     Text(
-                        text = "设置",
+                        text = stringResource(R.string.settings_header),
                         fontSize = 46.sp,
                         fontWeight = FontWeight.Thin,
                         letterSpacing = 8.sp,
@@ -112,7 +115,7 @@ fun SettingsScreen(nav: NavController) {
                         )
                         Spacer(Modifier.weight(1f))
                         Text(
-                            text = "07 ITEMS",
+                            text = stringResource(R.string.settings_items_count),
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Light,
                             letterSpacing = 4.sp,
@@ -125,12 +128,29 @@ fun SettingsScreen(nav: NavController) {
             Spacer(Modifier.height(32.dp))
 
             // ── 分组：外观 ──
-            GroupHeader(3, "外观", "APPEARANCE", textMain, textSub, dividerColor)
+            GroupHeader(
+                index = 3,
+                title = stringResource(R.string.settings_group_appearance),
+                subtitle = stringResource(R.string.settings_group_appearance_sub),
+                textMain = textMain,
+                textSub = textSub,
+                lineColor = dividerColor,
+            )
 
-            SettingRow(4, 1, "预设管理", "PRESET MANAGE", textMain, textSub, rowBg, dividerColor,
-                onClick = { nav.navigate("presetEdit") })
+            SettingRow(
+                index = 4, number = 1,
+                title = stringResource(R.string.settings_card_preset),
+                subtitle = stringResource(R.string.settings_card_preset_sub),
+                textMain = textMain, textSub = textSub, rowBg = rowBg, borderColor = dividerColor,
+                onClick = { nav.navigate("presetEdit") }
+            )
 
-            SettingRow(5, 2, "主题", "THEME", textMain, textSub, rowBg, dividerColor) {
+            SettingRow(
+                index = 5, number = 2,
+                title = stringResource(R.string.settings_card_theme),
+                subtitle = stringResource(R.string.settings_card_theme_sub),
+                textMain = textMain, textSub = textSub, rowBg = rowBg, borderColor = dividerColor
+            ) {
                 PillToggle(
                     options = listOf(
                         stringResource(R.string.settings_theme_light),
@@ -143,7 +163,12 @@ fun SettingsScreen(nav: NavController) {
                 )
             }
 
-            SettingRow(6, 3, "语言", "LANGUAGE", textMain, textSub, rowBg, dividerColor) {
+            SettingRow(
+                index = 6, number = 3,
+                title = stringResource(R.string.settings_card_language),
+                subtitle = stringResource(R.string.settings_card_language_sub),
+                textMain = textMain, textSub = textSub, rowBg = rowBg, borderColor = dividerColor
+            ) {
                 PillToggle(
                     options = listOf(
                         stringResource(R.string.settings_language_zh),
@@ -164,9 +189,21 @@ fun SettingsScreen(nav: NavController) {
             Spacer(Modifier.height(8.dp))
 
             // ── 分组：提醒 ──
-            GroupHeader(7, "提醒", "ALERTS", textMain, textSub, dividerColor)
+            GroupHeader(
+                index = 7,
+                title = stringResource(R.string.settings_group_alerts),
+                subtitle = stringResource(R.string.settings_group_alerts_sub),
+                textMain = textMain,
+                textSub = textSub,
+                lineColor = dividerColor,
+            )
 
-            SettingRow(8, 4, "通知", "NOTIFICATION", textMain, textSub, rowBg, dividerColor) {
+            SettingRow(
+                index = 8, number = 4,
+                title = stringResource(R.string.settings_card_notify),
+                subtitle = stringResource(R.string.settings_card_notify_sub),
+                textMain = textMain, textSub = textSub, rowBg = rowBg, borderColor = dividerColor
+            ) {
                 Switch(
                     notify,
                     onCheckedChange = { notify = it; prefs.notifyEnabled = it },
@@ -177,7 +214,12 @@ fun SettingsScreen(nav: NavController) {
                 )
             }
 
-            SettingRow(9, 5, "震动", "VIBRATE", textMain, textSub, rowBg, dividerColor) {
+            SettingRow(
+                index = 9, number = 5,
+                title = stringResource(R.string.settings_card_vibrate),
+                subtitle = stringResource(R.string.settings_card_vibrate_sub),
+                textMain = textMain, textSub = textSub, rowBg = rowBg, borderColor = dividerColor
+            ) {
                 Switch(
                     vibrate,
                     onCheckedChange = { vibrate = it; prefs.vibrate = it },
@@ -191,15 +233,32 @@ fun SettingsScreen(nav: NavController) {
             Spacer(Modifier.height(8.dp))
 
             // ── 分组：数据 ──
-            GroupHeader(10, "数据", "DATA", textMain, textSub, dividerColor)
+            GroupHeader(
+                index = 10,
+                title = stringResource(R.string.settings_group_data),
+                subtitle = stringResource(R.string.settings_group_data_sub),
+                textMain = textMain,
+                textSub = textSub,
+                lineColor = dividerColor,
+            )
 
-            SettingRow(11, 6, "导出备份", "EXPORT BACKUP", textMain, textSub, rowBg, dividerColor,
-                onClick = { app.backupToPublic() })
+            SettingRow(
+                index = 11, number = 6,
+                title = stringResource(R.string.settings_card_export),
+                subtitle = stringResource(R.string.settings_card_export_sub),
+                textMain = textMain, textSub = textSub, rowBg = rowBg, borderColor = dividerColor,
+                onClick = { app.backupToPublic() }
+            )
 
-            SettingRow(12, 7, "导入备份", "IMPORT BACKUP", textMain, textSub, rowBg, dividerColor,
+            SettingRow(
+                index = 12, number = 7,
+                title = stringResource(R.string.settings_card_import),
+                subtitle = stringResource(R.string.settings_card_import_sub),
+                textMain = textMain, textSub = textSub, rowBg = rowBg, borderColor = dividerColor,
                 onClick = {
                     import.launch(arrayOf("application/zip", "application/octet-stream"))
-                })
+                }
+            )
 
             Spacer(Modifier.height(36.dp))
 
@@ -222,8 +281,8 @@ fun SettingsScreen(nav: NavController) {
 @Composable
 private fun GroupHeader(
     index: Int,
-    zh: String,
-    en: String,
+    title: String,
+    subtitle: String,
     textMain: Color,
     textSub: Color,
     lineColor: Color,
@@ -241,7 +300,7 @@ private fun GroupHeader(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                zh,
+                title,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Medium,
                 letterSpacing = 3.sp,
@@ -249,7 +308,7 @@ private fun GroupHeader(
             )
             Spacer(Modifier.width(10.dp))
             Text(
-                en,
+                subtitle,
                 fontSize = 9.sp,
                 fontWeight = FontWeight.Light,
                 letterSpacing = 4.sp,
@@ -272,7 +331,7 @@ private fun SettingRow(
     index: Int,
     number: Int,
     title: String,
-    en: String,
+    subtitle: String,
     textMain: Color,
     textSub: Color,
     rowBg: Color,
@@ -297,7 +356,6 @@ private fun SettingRow(
                 .padding(horizontal = 16.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // 编号 01~07
             Text(
                 text = "%02d".format(number),
                 fontSize = 32.sp,
@@ -308,7 +366,6 @@ private fun SettingRow(
                 ),
                 modifier = Modifier.width(52.dp),
             )
-            // 细分隔
             Box(
                 Modifier
                     .width(1.dp)
@@ -316,7 +373,6 @@ private fun SettingRow(
                     .background(borderColor)
             )
             Spacer(Modifier.width(14.dp))
-            // 标题 + 英文
             Column(Modifier.weight(1f)) {
                 Text(
                     title,
@@ -327,7 +383,7 @@ private fun SettingRow(
                 )
                 Spacer(Modifier.height(2.dp))
                 Text(
-                    en,
+                    subtitle,
                     fontSize = 9.sp,
                     fontWeight = FontWeight.Light,
                     letterSpacing = 3.sp,

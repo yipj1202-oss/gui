@@ -128,8 +128,8 @@ private data class NavItem(
 @Composable
 private fun labelForRoute(route: String): String = when (route) {
     "home" -> stringResource(R.string.nav_tasks)
-    "tasks" -> "番茄"
-    "calendar" -> "日历"
+    "tasks" -> stringResource(R.string.nav_pomodoro)
+    "calendar" -> stringResource(R.string.nav_calendar)
     "stats" -> stringResource(R.string.nav_stats)
     else -> route
 }
@@ -321,7 +321,6 @@ private fun DraggableNavBar(
     val slotW = if (items.isEmpty() || barWidthPx == 0f) 0f else barWidthPx / items.size
     val latestItems by rememberUpdatedState(items)
 
-    // 选中 tab 的"视觉位置"（拖拽让位后）
     val selectedOriginalIdx = items.indexOfFirst { it.route == currentRoute }
     val selectedVisualIdx: Int = when {
         selectedOriginalIdx < 0 -> 0
@@ -338,13 +337,11 @@ private fun DraggableNavBar(
         }
     }
 
-    // ── 泡泡基础几何 ──
     val pillWidthBase = slotW * 0.62f
     val pillTargetX = selectedVisualIdx * slotW + (slotW - pillWidthBase) / 2f
     val pillHPx = with(density) { 32.dp.toPx() }
     val pillTopPx = with(density) { 16.dp.toPx() }
 
-    // 位置：spring，微微超调
     val pillX by animateFloatAsState(
         targetValue = pillTargetX,
         animationSpec = spring(
@@ -354,7 +351,6 @@ private fun DraggableNavBar(
         label = "pillX",
     )
 
-    // 基础宽度：比位置更"迟钝"一点（让泡泡看起来被拉扯）
     val pillWBase by animateFloatAsState(
         targetValue = pillWidthBase,
         animationSpec = spring(
@@ -364,40 +360,32 @@ private fun DraggableNavBar(
         label = "pillWBase",
     )
 
-    // ══ 挤压 / 爆裂 / 融合 ══
-    // squashX：横向挤压系数（横向挤宽 → 突然收缩 → 回弹）
-    // squashY：纵向挤压系数（跟横向反相，营造"被拉扁"的感觉）
     val squashX = remember { Animatable(1f) }
     val squashY = remember { Animatable(1f) }
 
     LaunchedEffect(selectedVisualIdx, draggingRoute) {
         if (draggingRoute != null) {
-            // 拖拽中：不播泡泡动画，保持 1
             squashX.snapTo(1f)
             squashY.snapTo(1f)
             return@LaunchedEffect
         }
-        // 点击切换（或拖拽松开）：走「挤 → 爆 → 融合」
         squashX.snapTo(1f)
         squashY.snapTo(1f)
 
-        // 横向：先被拉长（挤过去）→ 到位后爆开收缩 → 回弹
         squashX.animateTo(
             targetValue = 1f,
             animationSpec = keyframes {
                 durationMillis = 560
                 1.00f at 0
-                1.22f at 150     // 挤过去，横向拉长
-                0.86f at 330     // 爆开，突然收缩
-                1.05f at 460     // 轻微超调
+                1.22f at 150
+                0.86f at 330
+                1.05f at 460
                 1.00f at 560
             }
         )
     }
-    // 纵向跟横向反相：横向拉长时纵向压扁 → 泡泡的张力感
     LaunchedEffect(squashX.value) {
         val x = squashX.value
-        // 反相：x 越大，y 越小
         val targetY = (2f - x).coerceIn(0.85f, 1.15f)
         squashY.animateTo(
             targetValue = targetY,
@@ -420,8 +408,6 @@ private fun DraggableNavBar(
             .onSizeChanged { barWidthPx = it.width.toFloat() }
     ) {
         if (slotW > 0f) {
-            // ══ 泡泡胶囊（底层，zIndex 0） ══
-            // X 位置要按宽度变化微调，让泡泡以"中心"为锚点
             val centerX = pillX + pillWBase / 2f
             val pillLeft = centerX - finalW / 2f
             val pillTop = pillTopPx + (pillHPx - finalH) / 2f
@@ -435,7 +421,6 @@ private fun DraggableNavBar(
                     .background(selectedColor.copy(alpha = 0.16f))
             )
 
-            // ══ tabs（zIndex 1+） ══
             items.forEachIndexed { index, item ->
                 val selected = currentRoute == item.route
                 val isDragging = draggingRoute == item.route

@@ -59,7 +59,6 @@ private val DarkTextMain = Color(0xFFFFFFFF)
 private val OrangeStart = Color(0xFFE4572E)
 private val OrangeEnd = Color(0xFFFFA35C)
 
-// 超出起跑线时的"深色"
 private val DeepOrangeStart = Color(0xFFA83A1A)
 private val DeepOrangeEnd = Color(0xFFD9622B)
 
@@ -75,7 +74,6 @@ fun HomeScreen(nav: NavController) {
     var activeTasks by remember { mutableStateOf<List<Task>>(emptyList()) }
     var currentTaskTitle by remember { mutableStateOf<String?>(null) }
 
-    // ── 仪表自检 ──
     var selfCheckActive by remember {
         mutableStateOf(snap.state == State.IDLE && snap.plannedMs == 0L)
     }
@@ -165,11 +163,9 @@ fun HomeScreen(nav: NavController) {
         containerColor = bgColor,
         topBar = {
             TopAppBar(
-                // 左上角标题留空
                 title = {},
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
                 actions = {
-                    // 右上角：晷（进设置）
                     StaggerIn(index = 0, startOffsetY = 14.dp) {
                         IconButton(onClick = { nav.navigate("settings") }) {
                             Text(
@@ -357,11 +353,11 @@ fun HomeScreen(nav: NavController) {
 @Composable
 private fun StatusLine(state: State, isPaused: Boolean, isDark: Boolean) {
     val label = when {
-        isPaused -> "PAUSED"
-        state == State.FOCUS -> "FOCUS"
-        state == State.SHORT_BREAK -> "SHORT BREAK"
-        state == State.LONG_BREAK -> "LONG BREAK"
-        else -> "READY"
+        isPaused -> stringResource(R.string.state_paused)
+        state == State.FOCUS -> stringResource(R.string.state_focus)
+        state == State.SHORT_BREAK -> stringResource(R.string.state_short_break)
+        state == State.LONG_BREAK -> stringResource(R.string.state_long_break)
+        else -> stringResource(R.string.state_ready)
     }
     val dotColor = when {
         isPaused -> Color(0xFFFFB300)
