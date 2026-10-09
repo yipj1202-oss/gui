@@ -1,22 +1,35 @@
 package com.gui.tomato.ui.screens
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.gui.tomato.GuiApp
 import com.gui.tomato.R
 import com.gui.tomato.data.entities.Task
 
+private val DarkBg = Color(0xFF0D0D0D)
+private val DarkCard = Color(0xFF1A1A1A)
+private val DarkTextSub = Color(0xFF8A8A8A)
+private val DarkTextMain = Color(0xFFFFFFFF)
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TasksScreen(nav: NavController) {
     val ctx = LocalContext.current
@@ -31,82 +44,115 @@ fun TasksScreen(nav: NavController) {
         app.db.taskDao().doneFlow().collect { doneList = it }
     }
 
-    Surface(
-        modifier = Modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.background
-    ) {
-        Column(Modifier.fillMaxSize()) {
-            Row(
-                Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically
+    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
+    val bgColor = if (isDark) DarkBg else MaterialTheme.colorScheme.background
+    val cardColor = if (isDark) DarkCard else MaterialTheme.colorScheme.surface
+    val textMain = if (isDark) DarkTextMain else MaterialTheme.colorScheme.onBackground
+    val textSub = if (isDark) DarkTextSub else MaterialTheme.colorScheme.outline
+
+    Scaffold(
+        containerColor = bgColor,
+        topBar = {
+            TopAppBar(
+                title = {
+                    Text(
+                        stringResource(R.string.nav_tasks),
+                        color = textMain,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
+            )
+        },
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = { nav.navigate("taskEdit/0") },
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = Color.White,
+                shape = RoundedCornerShape(20.dp)
             ) {
-                Text(
-                    stringResource(R.string.task_title),
-                    Modifier.weight(1f),
-                    style = MaterialTheme.typography.headlineSmall,
-                    color = MaterialTheme.colorScheme.onBackground
-                )
-                FloatingActionButton(onClick = { nav.navigate("taskEdit/0") }) {
-                    Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.task_new_desc))
-                }
+                Icon(Icons.Filled.Add, contentDescription = "New task")
             }
-            LazyColumn(
-                Modifier.weight(1f),
-                contentPadding = PaddingValues(bottom = 16.dp)
-            ) {
-                if (activeList.isNotEmpty()) {
-                    item {
-                        Text(
-                            stringResource(R.string.task_section_active),
-                            Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                            style = MaterialTheme.typography.titleSmall,
-                            color = MaterialTheme.colorScheme.onBackground
-                        )
-                    }
-                }
-                items(activeList) { t ->
-                    TaskRow(
-                        t = t,
-                        onClick = { nav.navigate("taskDetail/" + t.id) },
-                        onToggleComplete = { isChecked ->
-                            kotlinx.coroutines.runBlocking {
-                                app.db.taskDao().update(
-                                    t.copy(
-                                        completed = isChecked,
-                                        completedAt = if (isChecked) System.currentTimeMillis() else null
-                                    )
-                                )
-                            }
-                        }
+        }
+    ) { pad ->
+        Column(
+            modifier = Modifier
+                .padding(pad)
+                .fillMaxSize()
+        ) {
+            if (activeList.isEmpty() && doneList.isEmpty()) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        "暂无任务",
+                        color = textSub,
+                        style = MaterialTheme.typography.bodyMedium
                     )
                 }
-                if (doneList.isNotEmpty()) {
-                    item {
-                        Text(
-                            stringResource(R.string.task_section_done),
-                            Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                            style = MaterialTheme.typography.titleSmall,
-                            color = MaterialTheme.colorScheme.onBackground
-                        )
-                    }
-                }
-                items(doneList) { t ->
-                    TaskRow(
-                        t = t,
-                        onClick = { nav.navigate("taskDetail/" + t.id) },
-                        onToggleComplete = { isChecked ->
-                            kotlinx.coroutines.runBlocking {
-                                app.db.taskDao().update(
-                                    t.copy(
-                                        completed = isChecked,
-                                        completedAt = if (isChecked) System.currentTimeMillis() else null
-                                    )
-                                )
-                            }
+            } else {
+                LazyColumn(
+                    contentPadding = PaddingValues(
+                        start = 16.dp, end = 16.dp,
+                        top = 8.dp, bottom = 96.dp
+                    ),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    if (activeList.isNotEmpty()) {
+                        item {
+                            Text(
+                                "进行中",
+                                style = MaterialTheme.typography.labelLarge,
+                                color = textSub,
+                                modifier = Modifier.padding(start = 4.dp, top = 8.dp, bottom = 4.dp)
+                            )
                         }
-                    )
+                        items(activeList) { t ->
+                            TaskCard(
+                                task = t,
+                                cardColor = cardColor,
+                                textMain = textMain,
+                                textSub = textSub,
+                                isDark = isDark,
+                                onToggle = {
+                                    kotlinx.coroutines.runBlocking {
+                                        app.db.taskDao().update(
+                                            t.copy(completed = true, completedAt = System.currentTimeMillis())
+                                        )
+                                    }
+                                },
+                                onClick = { nav.navigate("taskDetail/" + t.id) }
+                            )
+                        }
+                    }
+                    if (doneList.isNotEmpty()) {
+                        item {
+                            Text(
+                                "已完成",
+                                style = MaterialTheme.typography.labelLarge,
+                                color = textSub,
+                                modifier = Modifier.padding(start = 4.dp, top = 16.dp, bottom = 4.dp)
+                            )
+                        }
+                        items(doneList) { t ->
+                            TaskCard(
+                                task = t,
+                                cardColor = cardColor,
+                                textMain = textMain,
+                                textSub = textSub,
+                                isDark = isDark,
+                                onToggle = {
+                                    kotlinx.coroutines.runBlocking {
+                                        app.db.taskDao().update(
+                                            t.copy(completed = false, completedAt = null)
+                                        )
+                                    }
+                                },
+                                onClick = { nav.navigate("taskDetail/" + t.id) }
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -114,35 +160,53 @@ fun TasksScreen(nav: NavController) {
 }
 
 @Composable
-fun TaskRow(
-    t: Task,
-    onClick: () -> Unit,
-    onToggleComplete: (Boolean) -> Unit
+private fun TaskCard(
+    task: Task,
+    cardColor: Color,
+    textMain: Color,
+    textSub: Color,
+    isDark: Boolean,
+    onToggle: () -> Unit,
+    onClick: () -> Unit
 ) {
-    Card(
-        onClick = onClick,
+    Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 8.dp, vertical = 4.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .clickable { onClick() },
+        color = cardColor,
+        shape = RoundedCornerShape(16.dp)
     ) {
         Row(
-            modifier = Modifier.padding(12.dp),
+            modifier = Modifier.padding(14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            Checkbox(
+                checked = task.completed,
+                onCheckedChange = { onToggle() },
+                colors = CheckboxDefaults.colors(
+                    checkedColor = MaterialTheme.colorScheme.primary,
+                    uncheckedColor = textSub
+                )
+            )
+            Spacer(Modifier.width(8.dp))
             Column(Modifier.weight(1f)) {
-                Text(t.title, style = MaterialTheme.typography.titleMedium)
-                if (t.note.isNotEmpty()) {
+                Text(
+                    task.title,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = if (task.completed) textSub else textMain,
+                    fontWeight = FontWeight.Medium
+                )
+                if (task.note.isNotEmpty()) {
+                    Spacer(Modifier.height(2.dp))
                     Text(
-                        t.note,
+                        task.note,
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.outline
+                        color = textSub,
+                        maxLines = 2
                     )
                 }
             }
-            Checkbox(
-                checked = t.completed,
-                onCheckedChange = { isChecked -> onToggleComplete(isChecked) }
-            )
         }
     }
 }
