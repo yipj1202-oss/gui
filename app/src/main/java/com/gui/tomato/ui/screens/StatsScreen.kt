@@ -1,6 +1,7 @@
 package com.gui.tomato.ui.screens
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -15,6 +16,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
@@ -28,12 +30,18 @@ import com.gui.tomato.GuiApp
 import com.gui.tomato.R
 import com.gui.tomato.data.HourStatRow
 import com.gui.tomato.data.TaskStatRow
+import com.gui.tomato.ui.components.StaggerIn
+import kotlin.math.roundToInt
 
 private val DarkBg = Color(0xFF0D0D0D)
 private val DarkCard = Color(0xFF1A1A1A)
 private val DarkTrack = Color(0xFF2A2A2A)
 private val DarkTextSub = Color(0xFF8A8A8A)
 private val DarkTextMain = Color(0xFFFFFFFF)
+private val OrangeStart = Color(0xFFE4572E)
+
+// ── 折线趋势色（想换别的改这里）──
+private val TrendColor = Color(0xFFFFD08A)   // 暖金
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -43,6 +51,7 @@ fun StatsScreen(nav: NavController) {
     var range by remember { mutableIntStateOf(0) }
     var rows by remember { mutableStateOf<List<TaskStatRow>>(emptyList()) }
     var hours by remember { mutableStateOf<List<HourStatRow>>(emptyList()) }
+    var cursorHour by remember { mutableStateOf<Int?>(null) }
 
     LaunchedEffect(range) {
         val now = System.currentTimeMillis()
@@ -71,7 +80,7 @@ fun StatsScreen(nav: NavController) {
     val gridColor = if (isDark) Color(0xFF2A2A2A) else Color(0xFFE0E0E0)
 
     val primary = MaterialTheme.colorScheme.primary
-    val secondary = MaterialTheme.colorScheme.secondary
+    val secondary = TrendColor
 
     val maxTask = rows.maxOfOrNull { it.focusMin }?.takeIf { it > 0 } ?: 1
 
@@ -80,11 +89,13 @@ fun StatsScreen(nav: NavController) {
         topBar = {
             TopAppBar(
                 title = {
-                    Text(
-                        stringResource(R.string.nav_stats),
-                        color = textMain,
-                        fontWeight = FontWeight.SemiBold
-                    )
+                    StaggerIn(index = 0, startOffsetY = 14.dp) {
+                        Text(
+                            stringResource(R.string.nav_stats),
+                            color = textMain,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
             )
@@ -99,56 +110,84 @@ fun StatsScreen(nav: NavController) {
         ) {
             Spacer(Modifier.height(8.dp))
 
-            // 范围选择
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                val labels = listOf("今天", "本周", "本月")
-                labels.forEachIndexed { i, l ->
-                    FilterChip(
-                        selected = range == i,
-                        onClick = { range = i },
-                        label = { Text(l) },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = primary.copy(alpha = 0.18f),
-                            selectedLabelColor = primary,
-                            labelColor = textSub
+            // ── 范围选择 ──
+            StaggerIn(index = 1, startOffsetY = 14.dp) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    val labels = listOf("今天", "本周", "本月")
+                    labels.forEachIndexed { i, l ->
+                        FilterChip(
+                            selected = range == i,
+                            onClick = { range = i },
+                            label = { Text(l) },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = primary.copy(alpha = 0.18f),
+                                selectedLabelColor = primary,
+                                labelColor = textSub
+                            )
                         )
-                    )
+                    }
                 }
             }
 
             Spacer(Modifier.height(20.dp))
 
-            // 按任务分布
-            Text("按任务分布", style = MaterialTheme.typography.titleMedium, color = textMain)
+            // ── 时段分布（上） ──
+            StaggerIn(index = 2) {
+                Text("时段分布", style = MaterialTheme.typography.titleMedium, color = textMain)
+            }
             Spacer(Modifier.height(12.dp))
-            if (rows.isEmpty() || rows.all { it.focusMin == 0 }) {
-                EmptyHint("暂无专注数据", textSub)
+            if (hours.isEmpty() || hours.all { it.focusMin == 0 }) {
+                StaggerIn(index = 3) {
+                    EmptyHint("暂无数值数据", textSub)
+                }
             } else {
-                rows.take(10).forEach { r ->
-                    TaskBarRow(r, maxTask, primary, trackColor, textMain, textSub)
+                StaggerIn(
+                    index = 3,
+                    startOffsetX = 40.dp,
+                    startOffsetY = 20.dp,
+                ) {
+                    HourBarChart(
+                        hours = hours,
+                        barColor = primary,
+                        lineColor = secondary,
+                        gridColor = gridColor,
+                        labelColor = textSub,
+                        labelStyle = MaterialTheme.typography.labelSmall,
+                        cursorHour = cursorHour,
+                        onCursorChange = { cursorHour = it },
+                        textMain = textMain,
+                        textSub = textSub,
+                    )
+                }
+                Spacer(Modifier.height(12.dp))
+                StaggerIn(index = 4) {
+                    Legend(primary, secondary, textSub)
                 }
             }
 
             Spacer(Modifier.height(28.dp))
 
-            // 时段分布
-            Text("时段分布", style = MaterialTheme.typography.titleMedium, color = textMain)
+            // ── 按任务分布（下） ──
+            StaggerIn(index = 5) {
+                Text("按任务分布", style = MaterialTheme.typography.titleMedium, color = textMain)
+            }
             Spacer(Modifier.height(12.dp))
-            if (hours.isEmpty() || hours.all { it.focusMin == 0 }) {
-                EmptyHint("暂无数值数据", textSub)
+            if (rows.isEmpty() || rows.all { it.focusMin == 0 }) {
+                StaggerIn(index = 6) {
+                    EmptyHint("暂无专注数据", textSub)
+                }
             } else {
-                HourBarChart(
-                    hours = hours,
-                    barColor = primary,
-                    lineColor = secondary,
-                    gridColor = gridColor,
-                    labelColor = textSub,
-                    labelStyle = MaterialTheme.typography.labelSmall
-                )
+                rows.take(10).forEachIndexed { idx, r ->
+                    StaggerIn(
+                        index = 6 + idx,
+                        modifier = Modifier.fillMaxWidth(),
+                        startOffsetX = 32.dp,
+                    ) {
+                        TaskBarRow(r, maxTask, primary, trackColor, textMain, textSub)
+                    }
+                }
             }
 
-            Spacer(Modifier.height(16.dp))
-            Legend(primary, secondary, textSub)
             Spacer(Modifier.height(32.dp))
         }
     }
@@ -225,7 +264,11 @@ private fun HourBarChart(
     lineColor: Color,
     gridColor: Color,
     labelColor: Color,
-    labelStyle: TextStyle
+    labelStyle: TextStyle,
+    cursorHour: Int?,
+    onCursorChange: (Int?) -> Unit,
+    textMain: Color,
+    textSub: Color,
 ) {
     val textMeasurer = rememberTextMeasurer()
     val hourMap = remember(hours) { hours.associateBy { it.hour } }
@@ -240,49 +283,124 @@ private fun HourBarChart(
         else -> ((rawMax / 30) + 1) * 30
     }
 
-    Canvas(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(240.dp)
-    ) {
-        val leftPad = 40.dp.toPx()
-        val rightPad = 8.dp.toPx()
-        val topPad = 22.dp.toPx()
-        val bottomPad = 26.dp.toPx()
+    val cursorMin: Int = cursorHour?.let { hourMap[it]?.focusMin ?: 0 } ?: 0
 
-        val chartW = size.width - leftPad - rightPad
-        val chartH = size.height - topPad - bottomPad
-        val slotW = chartW / 24f
-        val barW = (slotW * 0.55f).coerceAtLeast(3.dp.toPx())
-        val cornerR = (barW / 2f).coerceAtMost(6.dp.toPx())
-
-        val ySteps = 4
-        for (i in 0..ySteps) {
-            val y = topPad + chartH * (1f - i.toFloat() / ySteps)
-            drawLine(
-                color = gridColor,
-                start = Offset(leftPad, y),
-                end = Offset(leftPad + chartW, y),
-                strokeWidth = 1.dp.toPx()
-            )
-            val value = (displayMax * i / ySteps)
-            val layout = textMeasurer.measure(value.toString(), labelStyle)
-            drawText(
-                textLayoutResult = layout,
-                color = labelColor,
-                topLeft = Offset(
-                    leftPad - layout.size.width - 4.dp.toPx(),
-                    y - layout.size.height / 2f
+    Column(modifier = Modifier.fillMaxWidth()) {
+        // ── 实时读数 ──
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 4.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.Bottom
+        ) {
+            Column {
+                Text(
+                    text = "游标",
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Light,
+                    letterSpacing = 3.sp,
+                    color = textSub
                 )
-            )
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    text = cursorHour?.let { "%02d".format(it) } ?: "--",
+                    fontSize = 30.sp,
+                    fontWeight = FontWeight.Thin,
+                    letterSpacing = 2.sp,
+                    color = if (cursorHour != null) textMain else textSub.copy(alpha = 0.35f)
+                )
+            }
+            Column(horizontalAlignment = Alignment.End) {
+                Text(
+                    text = "专注",
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Light,
+                    letterSpacing = 3.sp,
+                    color = textSub
+                )
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    text = cursorHour?.let { cursorMin.toString() } ?: "--",
+                    fontSize = 30.sp,
+                    fontWeight = FontWeight.Thin,
+                    letterSpacing = 2.sp,
+                    color = when {
+                        cursorHour == null -> textSub.copy(alpha = 0.35f)
+                        cursorMin > 0 -> barColor
+                        else -> textSub
+                    }
+                )
+            }
         }
 
-        val linePoints = mutableListOf<Offset>()
-        for (i in 0 until 24) {
-            val min = hourMap[i]?.focusMin ?: 0
-            val left = leftPad + i * slotW + (slotW - barW) / 2f
+        Spacer(Modifier.height(6.dp))
 
-            if (min > 0) {
+        Canvas(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(220.dp)
+                .pointerInput(hours) {
+                    detectHorizontalDragGestures(
+                        onDragStart = { offset ->
+                            val lP = 40.dp.toPx()
+                            val rP = 8.dp.toPx()
+                            val cW = size.width - lP - rP
+                            val sW = cW / 24f
+                            val h = ((offset.x - lP) / sW).roundToInt().coerceIn(0, 23)
+                            onCursorChange(h)
+                        },
+                        onHorizontalDrag = { change, _ ->
+                            change.consume()
+                            val lP = 40.dp.toPx()
+                            val rP = 8.dp.toPx()
+                            val cW = size.width - lP - rP
+                            val sW = cW / 24f
+                            val h = ((change.position.x - lP) / sW).roundToInt().coerceIn(0, 23)
+                            onCursorChange(h)
+                        },
+                    )
+                }
+        ) {
+            val leftPad = 40.dp.toPx()
+            val rightPad = 8.dp.toPx()
+            val topPad = 22.dp.toPx()
+            val bottomPad = 26.dp.toPx()
+
+            val chartW = size.width - leftPad - rightPad
+            val chartH = size.height - topPad - bottomPad
+            val slotW = chartW / 24f
+            val barW = (slotW * 0.55f).coerceAtLeast(3.dp.toPx())
+            val cornerR = (barW / 2f).coerceAtMost(6.dp.toPx())
+
+            // Y 轴网格
+            val ySteps = 4
+            for (i in 0..ySteps) {
+                val y = topPad + chartH * (1f - i.toFloat() / ySteps)
+                drawLine(
+                    color = gridColor,
+                    start = Offset(leftPad, y),
+                    end = Offset(leftPad + chartW, y),
+                    strokeWidth = 1.dp.toPx()
+                )
+                val value = (displayMax * i / ySteps)
+                val layout = textMeasurer.measure(value.toString(), labelStyle)
+                drawText(
+                    textLayoutResult = layout,
+                    color = labelColor,
+                    topLeft = Offset(
+                        leftPad - layout.size.width - 4.dp.toPx(),
+                        y - layout.size.height / 2f
+                    )
+                )
+            }
+
+            // ── 柱子 ──
+            for (i in 0 until 24) {
+                val min = hourMap[i]?.focusMin ?: 0
+                if (min <= 0) continue
+
+                val left = leftPad + i * slotW + (slotW - barW) / 2f
                 val barH = (min.toFloat() / displayMax) * chartH
                 val top = topPad + chartH - barH
                 drawRoundRect(
@@ -304,40 +422,78 @@ private fun HourBarChart(
                         (top - layout.size.height - 2.dp.toPx()).coerceAtLeast(0f)
                     )
                 )
-
-                linePoints.add(Offset(left + barW / 2f, top))
             }
-        }
 
-        if (linePoints.size >= 2) {
-            val path = Path().apply {
-                moveTo(linePoints[0].x, linePoints[0].y)
-                for (k in 1 until linePoints.size) {
-                    lineTo(linePoints[k].x, linePoints[k].y)
+            // ── 折线：24 点连续 ──
+            val linePoints = mutableListOf<Offset>()
+            for (i in 0 until 24) {
+                val min = hourMap[i]?.focusMin ?: 0
+                val cx = leftPad + i * slotW + slotW / 2f
+                val cy = if (min > 0) {
+                    topPad + chartH - (min.toFloat() / displayMax) * chartH
+                } else {
+                    topPad + chartH
+                }
+                linePoints.add(Offset(cx, cy))
+            }
+
+            if (linePoints.size >= 2) {
+                val path = Path().apply {
+                    moveTo(linePoints[0].x, linePoints[0].y)
+                    for (k in 1 until linePoints.size) {
+                        lineTo(linePoints[k].x, linePoints[k].y)
+                    }
+                }
+                drawPath(
+                    path = path,
+                    color = lineColor,
+                    style = Stroke(width = 2.dp.toPx())
+                )
+                for (i in 0 until 24) {
+                    val min = hourMap[i]?.focusMin ?: 0
+                    if (min > 0) {
+                        val p = linePoints[i]
+                        drawCircle(color = lineColor, radius = 3.dp.toPx(), center = p)
+                        drawCircle(color = Color.White, radius = 1.5.dp.toPx(), center = p)
+                    }
                 }
             }
-            drawPath(
-                path = path,
-                color = lineColor,
-                style = Stroke(width = 2.dp.toPx())
-            )
-            linePoints.forEach { p ->
-                drawCircle(color = lineColor, radius = 3.dp.toPx(), center = p)
-                drawCircle(color = Color.White, radius = 1.5.dp.toPx(), center = p)
-            }
-        }
 
-        listOf(0, 6, 12, 18, 23).forEach { hour ->
-            val x = leftPad + hour * slotW + slotW / 2f
-            val layout = textMeasurer.measure("${hour}时", labelStyle)
-            drawText(
-                textLayoutResult = layout,
-                color = labelColor,
-                topLeft = Offset(
-                    x - layout.size.width / 2f,
-                    topPad + chartH + 6.dp.toPx()
+            // X 轴小时标
+            listOf(0, 6, 12, 18, 23).forEach { hour ->
+                val x = leftPad + hour * slotW + slotW / 2f
+                val layout = textMeasurer.measure("${hour}时", labelStyle)
+                drawText(
+                    textLayoutResult = layout,
+                    color = labelColor,
+                    topLeft = Offset(
+                        x - layout.size.width / 2f,
+                        topPad + chartH + 6.dp.toPx()
+                    )
                 )
-            )
+            }
+
+            // ── 磁吸游标 ──
+            cursorHour?.let { ch ->
+                val cx = leftPad + ch * slotW + slotW / 2f
+                val cMin = hourMap[ch]?.focusMin ?: 0
+
+                drawLine(
+                    color = barColor.copy(alpha = 0.55f),
+                    start = Offset(cx, topPad),
+                    end = Offset(cx, topPad + chartH),
+                    strokeWidth = 1.5.dp.toPx()
+                )
+
+                val cy = if (cMin > 0) {
+                    topPad + chartH - (cMin.toFloat() / displayMax) * chartH
+                } else {
+                    topPad + chartH
+                }
+                drawCircle(color = Color.White, radius = 6.dp.toPx(), center = Offset(cx, cy))
+                drawCircle(color = barColor, radius = 4.dp.toPx(), center = Offset(cx, cy))
+                drawCircle(color = Color.White, radius = 1.5.dp.toPx(), center = Offset(cx, cy))
+            }
         }
     }
 }
