@@ -1,9 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">晷</string>
-    <string name="slogan">以晷量时，以行成事</string>
-    <string name="tab_home">主页</string>
-    <string name="tab_tasks">任务</string>
-    <string name="tab_stats">统计</string>
-    <string name="settings">设置</string>
+    <string name="settings_title">设置</string>
+    <string name="action_back">返回</string>
+    <string name="settings_preset_manage">番茄方案管理</string>
+    <string name="settings_preset_manage_action">新建/编辑 ❯</string>
+    <string name="settings_theme">主题</string>
+    <string name="settings_theme_light">浅色</string>
+    <string name="settings_theme_dark">深色</string>
+    <string name="settings_language">语言</string>
+    <string name="settings_language_zh">中文</string>
+    <string name="settings_language_en">English</string>
+    <string name="settings_notification">通知</string>
+    <string name="settings_vibrate">震动</string>
+    <string name="settings_export_backup">导出备份 (.guiback)</string>
+    <string name="settings_import_backup">导入备份</string>
+    <string name="settings_footer">晷 · 以晷量时，以行成事</string>
 </resources>

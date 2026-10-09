@@ -1,5 +1,7 @@
 package com.gui.tomato
 
+import android.content.Context
+import android.content.res.Configuration
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -13,8 +15,19 @@ import com.gui.tomato.ui.nav.AppNavHost
 import com.gui.tomato.ui.prefs.AppPrefs
 import com.gui.tomato.ui.screens.SplashScreen
 import com.gui.tomato.ui.theme.GuiTheme
+import java.util.Locale
 
 class MainActivity : ComponentActivity() {
+    override fun attachBaseContext(newBase: Context) {
+        val prefs = AppPrefs(newBase)
+        val lang = prefs.lang
+        val locale = if (lang == 1) Locale.ENGLISH else Locale.CHINESE
+        Locale.setDefault(locale)
+        val config = Configuration(newBase.resources.configuration)
+        config.setLocale(locale)
+        super.attachBaseContext(newBase.createConfigurationContext(config))
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {

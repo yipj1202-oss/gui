@@ -11,9 +11,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.gui.tomato.GuiApp
+import com.gui.tomato.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -35,10 +37,10 @@ fun SettingsScreen(nav: NavController) {
 
     Scaffold(topBar = {
         TopAppBar(
-            title = { Text("设置") },
+            title = { Text(stringResource(R.string.settings_title)) },
             navigationIcon = {
                 IconButton(onClick = { nav.popBackStack() }) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.action_back))
                 }
             }
         )
@@ -61,8 +63,8 @@ fun SettingsScreen(nav: NavController) {
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("番茄方案管理", style = MaterialTheme.typography.bodyLarge)
-                    Text("新建/编辑 ❯", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
+                    Text(stringResource(R.string.settings_preset_manage), style = MaterialTheme.typography.bodyLarge)
+                    Text(stringResource(R.string.settings_preset_manage_action), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
                 }
             }
             Card(
@@ -74,11 +76,15 @@ fun SettingsScreen(nav: NavController) {
                     Modifier.padding(12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("主题", Modifier.weight(1f))
-                    listOf("浅色", "深色").forEachIndexed { i, l ->
+                    Text(stringResource(R.string.settings_theme), Modifier.weight(1f))
+                    val themes = listOf(stringResource(R.string.settings_theme_light), stringResource(R.string.settings_theme_dark))
+                    themes.forEachIndexed { i, l ->
                         FilterChip(
                             selected = themeIdx == i,
-                            onClick = { prefs.theme = i },
+                            onClick = {
+                                prefs.theme = i
+                                (ctx as? android.app.Activity)?.recreate()
+                            },
                             label = { Text(l) }
                         )
                         if (i == 0) Spacer(Modifier.width(8.dp))
@@ -94,11 +100,15 @@ fun SettingsScreen(nav: NavController) {
                     Modifier.padding(12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("语言", Modifier.weight(1f))
-                    listOf("中文", "English").forEachIndexed { i, l ->
+                    Text(stringResource(R.string.settings_language), Modifier.weight(1f))
+                    val langs = listOf(stringResource(R.string.settings_language_zh), stringResource(R.string.settings_language_en))
+                    langs.forEachIndexed { i, l ->
                         FilterChip(
                             selected = langIdx == i,
-                            onClick = { prefs.lang = i },
+                            onClick = {
+                                prefs.lang = i
+                                (ctx as? android.app.Activity)?.recreate()
+                            },
                             label = { Text(l) }
                         )
                         if (i == 0) Spacer(Modifier.width(8.dp))
@@ -114,7 +124,7 @@ fun SettingsScreen(nav: NavController) {
                     Modifier.padding(12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("通知", Modifier.weight(1f))
+                    Text(stringResource(R.string.settings_notification), Modifier.weight(1f))
                     Switch(notify, onCheckedChange = { notify = it; prefs.notifyEnabled = it })
                 }
             }
@@ -127,7 +137,7 @@ fun SettingsScreen(nav: NavController) {
                     Modifier.padding(12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("震动", Modifier.weight(1f))
+                    Text(stringResource(R.string.settings_vibrate), Modifier.weight(1f))
                     Switch(vibrate, onCheckedChange = { vibrate = it; prefs.vibrate = it })
                 }
             }
@@ -137,7 +147,7 @@ fun SettingsScreen(nav: NavController) {
                     .fillMaxWidth()
                     .padding(8.dp)
             ) {
-                Text("导出备份 (.guiback)", Modifier.padding(12.dp))
+                Text(stringResource(R.string.settings_export_backup), Modifier.padding(12.dp))
             }
             Card(
                 onClick = { import.launch(arrayOf("application/zip", "application/octet-stream")) },
@@ -145,11 +155,11 @@ fun SettingsScreen(nav: NavController) {
                     .fillMaxWidth()
                     .padding(8.dp)
             ) {
-                Text("导入备份", Modifier.padding(12.dp))
+                Text(stringResource(R.string.settings_import_backup), Modifier.padding(12.dp))
             }
             Spacer(Modifier.weight(1f))
             Text(
-                "晷 · 以晷量时，以行成事",
+                stringResource(R.string.settings_footer),
                 modifier = Modifier.padding(16.dp),
                 style = MaterialTheme.typography.labelSmall
             )
