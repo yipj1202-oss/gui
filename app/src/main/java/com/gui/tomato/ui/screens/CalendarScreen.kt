@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.gui.tomato.GuiApp
 import com.gui.tomato.data.entities.Task
+import com.gui.tomato.ui.components.StaggerIn
 import kotlinx.coroutines.launch
 import java.util.Calendar
 
@@ -110,46 +111,54 @@ fun CalendarScreen(nav: NavController) {
         topBar = {
             TopAppBar(
                 title = {
-                    Text(
-                        text = "$year 年 ${month + 1} 月",
-                        fontSize = 22.sp,
-                        fontWeight = FontWeight.Thin,
-                        letterSpacing = 4.sp,
-                        color = textMain
-                    )
+                    StaggerIn(index = 0, startOffsetY = 14.dp) {
+                        Text(
+                            text = "$year 年 ${month + 1} 月",
+                            fontSize = 22.sp,
+                            fontWeight = FontWeight.Thin,
+                            letterSpacing = 4.sp,
+                            color = textMain
+                        )
+                    }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
                 actions = {
-                    IconButton(onClick = {
-                        currentMonth = (currentMonth.clone() as Calendar).apply {
-                            add(Calendar.MONTH, -1)
+                    StaggerIn(index = 1, startOffsetY = 14.dp) {
+                        Row {
+                            IconButton(onClick = {
+                                currentMonth = (currentMonth.clone() as Calendar).apply {
+                                    add(Calendar.MONTH, -1)
+                                }
+                                selectedDay = -1
+                            }) {
+                                Icon(Icons.Filled.ChevronLeft, contentDescription = "上个月", tint = textSub)
+                            }
+                            IconButton(onClick = {
+                                currentMonth = (currentMonth.clone() as Calendar).apply {
+                                    add(Calendar.MONTH, 1)
+                                }
+                                selectedDay = -1
+                            }) {
+                                Icon(Icons.Filled.ChevronRight, contentDescription = "下个月", tint = textSub)
+                            }
                         }
-                        selectedDay = -1
-                    }) {
-                        Icon(Icons.Filled.ChevronLeft, contentDescription = "上个月", tint = textSub)
-                    }
-                    IconButton(onClick = {
-                        currentMonth = (currentMonth.clone() as Calendar).apply {
-                            add(Calendar.MONTH, 1)
-                        }
-                        selectedDay = -1
-                    }) {
-                        Icon(Icons.Filled.ChevronRight, contentDescription = "下个月", tint = textSub)
                     }
                 }
             )
         },
         floatingActionButton = {
-            FloatingActionButton(
-                onClick = {
-                    if (selectedDay <= 0) selectedDay = todayDay.coerceAtLeast(1)
-                    showAddDialog = true
-                },
-                containerColor = OrangeStart,
-                contentColor = Color.White,
-                shape = RoundedCornerShape(20.dp)
-            ) {
-                Icon(Icons.Filled.Add, contentDescription = "新建任务")
+            StaggerIn(index = 9, startOffsetY = 20.dp, startScale = 0.85f) {
+                FloatingActionButton(
+                    onClick = {
+                        if (selectedDay <= 0) selectedDay = todayDay.coerceAtLeast(1)
+                        showAddDialog = true
+                    },
+                    containerColor = OrangeStart,
+                    contentColor = Color.White,
+                    shape = RoundedCornerShape(20.dp)
+                ) {
+                    Icon(Icons.Filled.Add, contentDescription = "新建任务")
+                }
             }
         }
     ) { pad ->
@@ -160,28 +169,30 @@ fun CalendarScreen(nav: NavController) {
                 .padding(horizontal = 8.dp, vertical = 4.dp)
         ) {
             // 星期表头
-            Row(Modifier.fillMaxWidth().padding(bottom = 6.dp)) {
-                WeekLabels.forEach { label ->
-                    Text(
-                        text = label,
-                        modifier = Modifier.weight(1f),
-                        textAlign = TextAlign.Center,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Light,
-                        letterSpacing = 3.sp,
-                        color = textSub
-                    )
+            StaggerIn(index = 2, startOffsetY = 10.dp) {
+                Row(Modifier.fillMaxWidth().padding(bottom = 6.dp)) {
+                    WeekLabels.forEach { label ->
+                        Text(
+                            text = label,
+                            modifier = Modifier.weight(1f),
+                            textAlign = TextAlign.Center,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Light,
+                            letterSpacing = 3.sp,
+                            color = textSub
+                        )
+                    }
                 }
             }
 
-            // 月历网格：铺满剩余高度
+            // 月历网格：逐格错落
             val weeks2 = cells.chunked(7)
             Column(
                 Modifier
                     .fillMaxWidth()
                     .weight(1f)
             ) {
-                weeks2.forEach { week ->
+                weeks2.forEachIndexed { weekIdx, week ->
                     Row(
                         Modifier
                             .fillMaxWidth()
@@ -189,28 +200,38 @@ fun CalendarScreen(nav: NavController) {
                             .padding(vertical = 2.dp),
                         horizontalArrangement = Arrangement.spacedBy(3.dp)
                     ) {
-                        week.forEach { day ->
+                        week.forEachIndexed { colIdx, day ->
+                            val globalIdx = weekIdx * 7 + colIdx
                             Box(Modifier.weight(1f).fillMaxHeight()) {
-                                if (day != null) {
-                                    DayCell(
-                                        day = day,
-                                        tasks = tasksByDay[day] ?: emptyList(),
-                                        isToday = day == todayDay,
-                                        isSelected = day == selectedDay,
-                                        cellColor = cellColor,
-                                        textMain = textMain,
-                                        textSub = textSub,
-                                        onDayClick = { selectedDay = day },
-                                        onTaskClick = { t -> nav.navigate("taskDetail/" + t.id) },
-                                        onTaskLongPress = { t -> taskToDelete = t }
-                                    )
-                                } else {
-                                    Box(
-                                        Modifier
-                                            .fillMaxSize()
-                                            .clip(RoundedCornerShape(8.dp))
-                                            .background(cellEmptyColor)
-                                    )
+                                StaggerIn(
+                                    index = 3 + globalIdx,
+                                    modifier = Modifier.fillMaxSize(),
+                                    baseDelayMs = 40,
+                                    durationMs = 420,
+                                    startOffsetX = 24.dp,
+                                    startOffsetY = 12.dp,
+                                ) {
+                                    if (day != null) {
+                                        DayCell(
+                                            day = day,
+                                            tasks = tasksByDay[day] ?: emptyList(),
+                                            isToday = day == todayDay,
+                                            isSelected = day == selectedDay,
+                                            cellColor = cellColor,
+                                            textMain = textMain,
+                                            textSub = textSub,
+                                            onDayClick = { selectedDay = day },
+                                            onTaskClick = { t -> nav.navigate("taskDetail/" + t.id) },
+                                            onTaskLongPress = { t -> taskToDelete = t }
+                                        )
+                                    } else {
+                                        Box(
+                                            Modifier
+                                                .fillMaxSize()
+                                                .clip(RoundedCornerShape(8.dp))
+                                                .background(cellEmptyColor)
+                                        )
+                                    }
                                 }
                             }
                         }
