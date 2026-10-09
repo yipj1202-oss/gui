@@ -16,4 +16,7 @@
     <string name="settings_export_backup">Export Backup (.guiback)</string>
     <string name="settings_import_backup">Import Backup</string>
     <string name="settings_footer">Gui · Measure time, achieve deeds</string>
+    <string name="nav_home">Home</string>
+    <string name="nav_tasks">Tasks</string>
+    <string name="nav_stats">Stats</string>
 </resources>

@@ -14,10 +14,12 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
+import com.gui.tomato.R
 import com.gui.tomato.ui.screens.*
 
 @Composable
@@ -44,8 +46,8 @@ fun AppNavHost(
                                 }
                             }
                         },
-                        icon = { Icon(Icons.Default.Home, contentDescription = "主页") },
-                        label = { Text("主页") }
+                        icon = { Icon(Icons.Default.Home, contentDescription = stringResource(R.string.nav_home)) },
+                        label = { Text(stringResource(R.string.nav_home)) }
                     )
                     NavigationBarItem(
                         selected = currentRoute == "tasks",
@@ -56,8 +58,8 @@ fun AppNavHost(
                                 }
                             }
                         },
-                        icon = { Icon(Icons.AutoMirrored.Filled.List, contentDescription = "任务") },
-                        label = { Text("任务") }
+                        icon = { Icon(Icons.AutoMirrored.Filled.List, contentDescription = stringResource(R.string.nav_tasks)) },
+                        label = { Text(stringResource(R.string.nav_tasks)) }
                     )
                     NavigationBarItem(
                         selected = currentRoute == "stats",
@@ -68,8 +70,8 @@ fun AppNavHost(
                                 }
                             }
                         },
-                        icon = { Icon(Icons.Default.BarChart, contentDescription = "统计") },
-                        label = { Text("统计") }
+                        icon = { Icon(Icons.Default.BarChart, contentDescription = stringResource(R.string.nav_stats)) },
+                        label = { Text(stringResource(R.string.nav_stats)) }
                     )
                 }
             }
