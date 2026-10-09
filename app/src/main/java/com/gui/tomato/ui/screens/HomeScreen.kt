@@ -1,9 +1,12 @@
 package com.gui.tomato.ui.screens
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.keyframes
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
@@ -29,6 +32,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -45,6 +49,7 @@ import com.gui.tomato.data.entities.PomodoroPreset
 import com.gui.tomato.data.entities.Task
 import com.gui.tomato.engine.Snapshot
 import com.gui.tomato.engine.State
+import com.gui.tomato.ui.components.StaggerIn
 
 private val DarkBg = Color(0xFF0D0D0D)
 private val DarkCard = Color(0xFF1A1A1A)
@@ -53,6 +58,10 @@ private val DarkTextSub = Color(0xFF8A8A8A)
 private val DarkTextMain = Color(0xFFFFFFFF)
 private val OrangeStart = Color(0xFFE4572E)
 private val OrangeEnd = Color(0xFFFFA35C)
+
+// 超出起跑线时的"深色"
+private val DeepOrangeStart = Color(0xFFA83A1A)
+private val DeepOrangeEnd = Color(0xFFD9622B)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -65,6 +74,51 @@ fun HomeScreen(nav: NavController) {
     var presetList by remember { mutableStateOf<List<PomodoroPreset>>(emptyList()) }
     var activeTasks by remember { mutableStateOf<List<Task>>(emptyList()) }
     var currentTaskTitle by remember { mutableStateOf<String?>(null) }
+
+    // ── 仪表自检 ──
+    var selfCheckActive by remember {
+        mutableStateOf(snap.state == State.IDLE && snap.plannedMs == 0L)
+    }
+    val selfCheckAnim = remember { Animatable(0f) }
+
+    LaunchedEffect(snap.state) {
+        if (snap.state != State.IDLE) selfCheckActive = false
+    }
+
+    LaunchedEffect(Unit) {
+        if (selfCheckActive) {
+            selfCheckAnim.snapTo(0f)
+            kotlinx.coroutines.delay(380)
+
+            // 冲劲：560ms 从 0 拉到 110%
+            selfCheckAnim.animateTo(
+                targetValue = 1.10f,
+                animationSpec = keyframes {
+                    durationMillis = 560
+                    0.55f at 160
+                    0.90f at 320
+                    1.10f at 560
+                }
+            )
+            // 撞击回弹（快速）
+            selfCheckAnim.animateTo(
+                targetValue = 1f,
+                animationSpec = tween(130, easing = FastOutSlowInEasing)
+            )
+
+            // 顶峰短停
+            kotlinx.coroutines.delay(160)
+
+            // 原路倒回（提速）
+            selfCheckAnim.animateTo(
+                targetValue = 0f,
+                animationSpec = tween(420, easing = FastOutSlowInEasing)
+            )
+
+            kotlinx.coroutines.delay(80)
+            selfCheckActive = false
+        }
+    }
 
     LaunchedEffect(Unit) {
         while (true) {
@@ -99,29 +153,38 @@ fun HomeScreen(nav: NavController) {
     val textMain = if (isDark) DarkTextMain else MaterialTheme.colorScheme.onBackground
     val textSub = if (isDark) DarkTextSub else MaterialTheme.colorScheme.outline
 
+    val ringSelfCheck: Float? = if (selfCheckActive) selfCheckAnim.value else null
+    val numSelfCheck: Float? = if (selfCheckActive) {
+        if (selfCheckAnim.value >= 0.95f) 1f else selfCheckAnim.value
+    } else null
+
     Scaffold(
         containerColor = bgColor,
         topBar = {
             TopAppBar(
                 title = {
-                    Text(
-                        text = "晷",
-                        fontSize = 26.sp,
-                        fontWeight = FontWeight.Thin,
-                        letterSpacing = 2.sp,
-                        style = MaterialTheme.typography.titleLarge.copy(
-                            brush = Brush.linearGradient(listOf(OrangeStart, OrangeEnd))
+                    StaggerIn(index = 0, startOffsetY = 14.dp) {
+                        Text(
+                            text = "晷",
+                            fontSize = 26.sp,
+                            fontWeight = FontWeight.Thin,
+                            letterSpacing = 2.sp,
+                            style = MaterialTheme.typography.titleLarge.copy(
+                                brush = Brush.linearGradient(listOf(OrangeStart, OrangeEnd))
+                            )
                         )
-                    )
+                    }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
                 actions = {
-                    IconButton(onClick = { nav.navigate("settings") }) {
-                        Icon(
-                            Icons.Filled.Settings,
-                            contentDescription = stringResource(R.string.home_settings),
-                            tint = textSub
-                        )
+                    StaggerIn(index = 1, startOffsetY = 14.dp) {
+                        IconButton(onClick = { nav.navigate("settings") }) {
+                            Icon(
+                                Icons.Filled.Settings,
+                                contentDescription = stringResource(R.string.home_settings),
+                                tint = textSub
+                            )
+                        }
                     }
                 }
             )
@@ -135,62 +198,80 @@ fun HomeScreen(nav: NavController) {
         ) {
             Spacer(Modifier.height(8.dp))
 
-            StatusLine(snap.state, snap.isPaused, isDark)
+            StaggerIn(index = 2) {
+                StatusLine(snap.state, snap.isPaused, isDark)
+            }
 
             Spacer(Modifier.height(16.dp))
 
-            PresetLine(
-                name = app.repo.engine.preset.name,
-                focusMin = app.repo.engine.preset.focusMin,
-                shortBreakMin = app.repo.engine.preset.shortBreakMin,
-                isDark = isDark,
-                onClick = { showPresetSheet = true }
-            )
+            StaggerIn(index = 3) {
+                PresetLine(
+                    name = app.repo.engine.preset.name,
+                    focusMin = app.repo.engine.preset.focusMin,
+                    shortBreakMin = app.repo.engine.preset.shortBreakMin,
+                    isDark = isDark,
+                    onClick = { showPresetSheet = true }
+                )
+            }
 
             Spacer(Modifier.height(36.dp))
 
-            DashboardRing(snap = snap, isDark = isDark)
+            StaggerIn(index = 4, startOffsetX = 40.dp) {
+                DashboardRing(
+                    snap = snap,
+                    isDark = isDark,
+                    presetFocusMin = app.repo.engine.preset.focusMin,
+                    selfCheckRing = ringSelfCheck,
+                    selfCheckNum = numSelfCheck,
+                )
+            }
 
             Spacer(Modifier.height(20.dp))
 
             if (snap.taskId != null) {
-                Text(
-                    stringResource(
-                        R.string.home_focusing_on,
-                        currentTaskTitle ?: stringResource(R.string.home_task_loading)
-                    ),
-                    fontSize = 12.sp,
-                    letterSpacing = 1.sp,
-                    color = textSub
-                )
+                StaggerIn(index = 5) {
+                    Text(
+                        stringResource(
+                            R.string.home_focusing_on,
+                            currentTaskTitle ?: stringResource(R.string.home_task_loading)
+                        ),
+                        fontSize = 12.sp,
+                        letterSpacing = 1.sp,
+                        color = textSub
+                    )
+                }
             }
 
             Spacer(Modifier.height(28.dp))
 
-            ControlButtons(
-                snap = snap,
-                onStart = { showTaskSheet = true },
-                onPause = { app.repo.pause(); snap = app.repo.current() },
-                onResume = { app.repo.resume(); snap = app.repo.current() },
-                onSkip = { app.repo.skip(); snap = app.repo.current() },
-                onFinish = { app.repo.finish(); app.serviceStop(); snap = app.repo.current() }
-            )
+            StaggerIn(index = 6) {
+                ControlButtons(
+                    snap = snap,
+                    onStart = { showTaskSheet = true },
+                    onPause = { app.repo.pause(); snap = app.repo.current() },
+                    onResume = { app.repo.resume(); snap = app.repo.current() },
+                    onSkip = { app.repo.skip(); snap = app.repo.current() },
+                    onFinish = { app.repo.finish(); app.serviceStop(); snap = app.repo.current() }
+                )
+            }
 
             Spacer(Modifier.weight(1f))
 
-            Text(
-                text = stringResource(
-                    R.string.home_today_summary,
-                    app.todayFocusCountSafe(),
-                    app.todayFocusMinutesSafe()
-                ),
-                fontSize = 12.sp,
-                letterSpacing = 2.sp,
-                color = textSub,
-                modifier = Modifier
-                    .clickable { nav.navigate("stats") }
-                    .padding(20.dp)
-            )
+            StaggerIn(index = 7, startOffsetY = 16.dp) {
+                Text(
+                    text = stringResource(
+                        R.string.home_today_summary,
+                        app.todayFocusCountSafe(),
+                        app.todayFocusMinutesSafe()
+                    ),
+                    fontSize = 12.sp,
+                    letterSpacing = 2.sp,
+                    color = textSub,
+                    modifier = Modifier
+                        .clickable { nav.navigate("stats") }
+                        .padding(20.dp)
+                )
+            }
         }
     }
 
@@ -354,18 +435,43 @@ private fun PresetLine(
 }
 
 @Composable
-private fun DashboardRing(snap: Snapshot, isDark: Boolean) {
+private fun DashboardRing(
+    snap: Snapshot,
+    isDark: Boolean,
+    presetFocusMin: Int,
+    selfCheckRing: Float?,
+    selfCheckNum: Float?,
+) {
     val trackColor = if (isDark) DarkTrack else Color(0xFFEAEAEA)
     val textColor = if (isDark) DarkTextMain else MaterialTheme.colorScheme.onBackground
     val subColor = if (isDark) DarkTextSub else MaterialTheme.colorScheme.outline
 
-    val progress = if (snap.plannedMs == 0L) 0f
+    val realProgress = if (snap.plannedMs == 0L) 0f
     else (1f - snap.remainMs.toFloat() / snap.plannedMs.toFloat()).coerceIn(0f, 1f)
 
-    val timeText = if (snap.plannedMs == 0L) {
-        stringResource(R.string.home_not_started)
-    } else {
-        String.format("%02d:%02d", snap.remainMs / 60000, (snap.remainMs % 60000) / 1000)
+    val rawProgress = selfCheckRing ?: realProgress
+    val mainProgress = rawProgress.coerceIn(0f, 1f)
+
+    // 超出程度：0（未超出）→ 1（超出 10%）
+    val deepness = ((rawProgress - 1f) / 0.10f).coerceIn(0f, 1f)
+
+    // 主弧颜色：正常橙 → 深橙（超出时）
+    val arcA = lerp(OrangeStart, DeepOrangeStart, deepness)
+    val arcB = lerp(OrangeEnd, DeepOrangeEnd, deepness)
+    val arcColors = listOf(arcA, arcB, arcA)
+
+    val timeText: String = when {
+        selfCheckNum != null -> {
+            val totalMs = presetFocusMin * 60_000L
+            val shown = (totalMs * selfCheckNum).toLong()
+            String.format("%02d:%02d", shown / 60000, (shown % 60000) / 1000)
+        }
+        snap.plannedMs == 0L -> {
+            String.format("%02d:%02d", presetFocusMin, 0)
+        }
+        else -> {
+            String.format("%02d:%02d", snap.remainMs / 60000, (snap.remainMs % 60000) / 1000)
+        }
     }
 
     Box(
@@ -388,8 +494,8 @@ private fun DashboardRing(snap: Snapshot, isDark: Boolean) {
                 val sy = center.y + (startR * Math.sin(angleRad)).toFloat()
                 val ex = center.x + (endR * Math.cos(angleRad)).toFloat()
                 val ey = center.y + (endR * Math.sin(angleRad)).toFloat()
-                val done = i.toFloat() / tickCount <= progress
-                val tickColor = if (done) OrangeStart else trackColor
+                val done = i.toFloat() / tickCount <= mainProgress
+                val tickColor = if (done) arcA else trackColor
                 drawLine(
                     color = tickColor,
                     start = Offset(sx, sy),
@@ -399,6 +505,7 @@ private fun DashboardRing(snap: Snapshot, isDark: Boolean) {
                 )
             }
 
+            // 轨道
             drawArc(
                 color = trackColor,
                 startAngle = -90f,
@@ -408,13 +515,13 @@ private fun DashboardRing(snap: Snapshot, isDark: Boolean) {
                 size = Size(radius * 2f, radius * 2f),
                 style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
             )
-            if (progress > 0f) {
+
+            // 主弧：正常画满 100%，超出时颜色会自然变深（同一支弧）
+            if (mainProgress > 0f) {
                 drawArc(
-                    brush = Brush.sweepGradient(
-                        colors = listOf(OrangeStart, OrangeEnd, OrangeStart)
-                    ),
+                    brush = Brush.sweepGradient(colors = arcColors),
                     startAngle = -90f,
-                    sweepAngle = 360f * progress,
+                    sweepAngle = 360f * mainProgress,
                     useCenter = false,
                     topLeft = Offset(center.x - radius, center.y - radius),
                     size = Size(radius * 2f, radius * 2f),
@@ -428,40 +535,26 @@ private fun DashboardRing(snap: Snapshot, isDark: Boolean) {
             verticalArrangement = Arrangement.Center,
             modifier = Modifier.fillMaxSize()
         ) {
-            if (snap.plannedMs == 0L) {
-                Text(
-                    text = timeText,
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.Thin,
-                    letterSpacing = 8.sp,
-                    textAlign = TextAlign.Center,
-                    style = TextStyle(
-                        platformStyle = PlatformTextStyle(includeFontPadding = false)
-                    ),
-                    color = textColor
-                )
-            } else {
-                Text(
-                    text = timeText,
-                    fontSize = 62.sp,
-                    fontWeight = FontWeight.Thin,
-                    letterSpacing = 1.sp,
-                    textAlign = TextAlign.Center,
-                    style = TextStyle(
-                        platformStyle = PlatformTextStyle(includeFontPadding = false)
-                    ),
-                    color = textColor
-                )
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    text = "${(progress * 100).toInt()}%",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Light,
-                    letterSpacing = 4.sp,
-                    textAlign = TextAlign.Center,
-                    color = subColor
-                )
-            }
+            Text(
+                text = timeText,
+                fontSize = 62.sp,
+                fontWeight = FontWeight.Thin,
+                letterSpacing = 1.sp,
+                textAlign = TextAlign.Center,
+                style = TextStyle(
+                    platformStyle = PlatformTextStyle(includeFontPadding = false)
+                ),
+                color = textColor
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = "${(mainProgress * 100).toInt()}%",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Light,
+                letterSpacing = 4.sp,
+                textAlign = TextAlign.Center,
+                color = subColor
+            )
         }
     }
 }

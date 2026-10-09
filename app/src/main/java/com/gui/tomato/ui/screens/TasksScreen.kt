@@ -4,6 +4,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -25,6 +26,7 @@ import androidx.navigation.NavController
 import com.gui.tomato.GuiApp
 import com.gui.tomato.R
 import com.gui.tomato.data.entities.Task
+import com.gui.tomato.ui.components.StaggerIn
 
 private val DarkBg = Color(0xFF0D0D0D)
 private val DarkCard = Color(0xFF1A1A1A)
@@ -59,36 +61,42 @@ fun TasksScreen(nav: NavController) {
         topBar = {
             TopAppBar(
                 title = {
-                    Text(
-                        stringResource(R.string.nav_tasks),
-                        color = textMain,
-                        fontWeight = FontWeight.SemiBold
-                    )
+                    StaggerIn(index = 0, startOffsetY = 14.dp) {
+                        Text(
+                            stringResource(R.string.nav_tasks),
+                            color = textMain,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
                 actions = {
-                    IconButton(onClick = { nav.navigate("settings") }) {
-                        Text(
-                            text = "晷",
-                            fontSize = 24.sp,
-                            fontWeight = FontWeight.Thin,
-                            letterSpacing = 1.sp,
-                            style = TextStyle(
-                                brush = Brush.linearGradient(listOf(OrangeStart, OrangeEnd))
+                    StaggerIn(index = 1, startOffsetY = 14.dp) {
+                        IconButton(onClick = { nav.navigate("settings") }) {
+                            Text(
+                                text = "晷",
+                                fontSize = 24.sp,
+                                fontWeight = FontWeight.Thin,
+                                letterSpacing = 1.sp,
+                                style = TextStyle(
+                                    brush = Brush.linearGradient(listOf(OrangeStart, OrangeEnd))
+                                )
                             )
-                        )
+                        }
                     }
                 }
             )
         },
         floatingActionButton = {
-            FloatingActionButton(
-                onClick = { nav.navigate("taskEdit/0") },
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = Color.White,
-                shape = RoundedCornerShape(20.dp)
-            ) {
-                Icon(Icons.Filled.Add, contentDescription = "New task")
+            StaggerIn(index = 9, startOffsetY = 20.dp, startScale = 0.85f) {
+                FloatingActionButton(
+                    onClick = { nav.navigate("taskEdit/0") },
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = Color.White,
+                    shape = RoundedCornerShape(20.dp)
+                ) {
+                    Icon(Icons.Filled.Add, contentDescription = "New task")
+                }
             }
         }
     ) { pad ->
@@ -102,11 +110,13 @@ fun TasksScreen(nav: NavController) {
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        "暂无任务，点右下角 + 添加",
-                        color = textSub,
-                        style = MaterialTheme.typography.bodyMedium
-                    )
+                    StaggerIn(index = 2) {
+                        Text(
+                            "暂无任务，点右下角 + 添加",
+                            color = textSub,
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
                 }
             } else {
                 LazyColumn(
@@ -118,54 +128,65 @@ fun TasksScreen(nav: NavController) {
                 ) {
                     if (activeList.isNotEmpty()) {
                         item {
-                            Text(
-                                "进行中",
-                                style = MaterialTheme.typography.labelLarge,
-                                color = textSub,
-                                modifier = Modifier.padding(start = 4.dp, top = 8.dp, bottom = 4.dp)
-                            )
+                            StaggerIn(index = 2) {
+                                Text(
+                                    "进行中",
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = textSub,
+                                    modifier = Modifier.padding(start = 4.dp, top = 8.dp, bottom = 4.dp)
+                                )
+                            }
                         }
-                        items(activeList, key = { it.id }) { t ->
-                            TaskCard(
-                                task = t,
-                                cardColor = cardColor,
-                                textMain = textMain,
-                                textSub = textSub,
-                                onToggle = {
-                                    kotlinx.coroutines.runBlocking {
-                                        app.db.taskDao().update(
-                                            t.copy(completed = true, completedAt = System.currentTimeMillis())
-                                        )
-                                    }
-                                },
-                                onClick = { nav.navigate("taskDetail/" + t.id) }
-                            )
+                        itemsIndexed(activeList, key = { _, t -> t.id }) { idx, t ->
+                            StaggerIn(index = 3 + idx, modifier = Modifier.fillMaxWidth()) {
+                                TaskCard(
+                                    task = t,
+                                    cardColor = cardColor,
+                                    textMain = textMain,
+                                    textSub = textSub,
+                                    onToggle = {
+                                        kotlinx.coroutines.runBlocking {
+                                            app.db.taskDao().update(
+                                                t.copy(completed = true, completedAt = System.currentTimeMillis())
+                                            )
+                                        }
+                                    },
+                                    onClick = { nav.navigate("taskDetail/" + t.id) }
+                                )
+                            }
                         }
                     }
                     if (doneList.isNotEmpty()) {
                         item {
-                            Text(
-                                "已完成",
-                                style = MaterialTheme.typography.labelLarge,
-                                color = textSub,
-                                modifier = Modifier.padding(start = 4.dp, top = 16.dp, bottom = 4.dp)
-                            )
+                            StaggerIn(index = 3 + activeList.size) {
+                                Text(
+                                    "已完成",
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = textSub,
+                                    modifier = Modifier.padding(start = 4.dp, top = 16.dp, bottom = 4.dp)
+                                )
+                            }
                         }
-                        items(doneList, key = { it.id }) { t ->
-                            TaskCard(
-                                task = t,
-                                cardColor = cardColor,
-                                textMain = textMain,
-                                textSub = textSub,
-                                onToggle = {
-                                    kotlinx.coroutines.runBlocking {
-                                        app.db.taskDao().update(
-                                            t.copy(completed = false, completedAt = null)
-                                        )
-                                    }
-                                },
-                                onClick = { nav.navigate("taskDetail/" + t.id) }
-                            )
+                        itemsIndexed(doneList, key = { _, t -> t.id }) { idx, t ->
+                            StaggerIn(
+                                index = 4 + activeList.size + idx,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                TaskCard(
+                                    task = t,
+                                    cardColor = cardColor,
+                                    textMain = textMain,
+                                    textSub = textSub,
+                                    onToggle = {
+                                        kotlinx.coroutines.runBlocking {
+                                            app.db.taskDao().update(
+                                                t.copy(completed = false, completedAt = null)
+                                            )
+                                        }
+                                    },
+                                    onClick = { nav.navigate("taskDetail/" + t.id) }
+                                )
+                            }
                         }
                     }
                 }

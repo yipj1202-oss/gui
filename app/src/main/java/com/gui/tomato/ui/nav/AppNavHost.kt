@@ -35,6 +35,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateListOf
@@ -61,15 +62,16 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import com.gui.tomato.R
+import com.gui.tomato.ui.components.LocalNavDirection
+import com.gui.tomato.ui.components.NavDirection
 import com.gui.tomato.ui.screens.*
 import kotlin.math.roundToInt
 
 private val DarkBg = Color(0xFF0D0D0D)
 private val DarkCard = Color(0xFF1A1A1A)
 
-// ───────────── 统一时长 ─────────────
-private const val DUR_ENTER = 320   // 新页面进入
-private const val DUR_EXIT = 240    // 旧页面退场（比进入快，制造层次）
+private const val DUR_ENTER = 320
+private const val DUR_EXIT = 240
 
 private fun detailEnter(): EnterTransition =
     slideInHorizontally(
@@ -83,7 +85,6 @@ private fun detailPopExit(): ExitTransition =
         animationSpec = tween(DUR_ENTER, easing = FastOutSlowInEasing),
     ) + fadeOut(tween(DUR_EXIT, easing = FastOutSlowInEasing))
 
-// ---------- 底栏顺序持久化 ----------
 private const val PREFS_NAME = "gui_nav_prefs"
 private const val KEY_ORDER = "bottom_bar_order"
 private val DEFAULT_ORDER = listOf("home", "tasks", "calendar", "stats")
@@ -105,7 +106,6 @@ private fun saveOrder(context: Context, order: List<String>) {
         .apply()
 }
 
-// ---------- 底栏项定义 ----------
 private data class NavItem(
     val route: String,
     val icon: ImageVector,
@@ -149,8 +149,10 @@ fun AppNavHost(
     }
     val orderedItems = order.mapNotNull { r -> allItems.firstOrNull { it.route == r } }
 
-    // 供转场动画计算方向用：当前底栏顺序（快照）
     val orderForTransition by rememberUpdatedState(order.toList())
+
+    // 导航方向信使：给页面内的 StaggerIn 用
+    var navDirection by remember { mutableStateOf(NavDirection.None) }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -165,6 +167,14 @@ fun AppNavHost(
                     unselectedColor = unselectedColor,
                     onNavigate = { route ->
                         if (currentRoute != route) {
+                            // 先算方向，再切页面，保证新页面第一次组合就能读到正确方向
+                            val fromIdx = order.indexOf(currentRoute.orEmpty())
+                            val toIdx = order.indexOf(route)
+                            navDirection = when {
+                                fromIdx >= 0 && toIdx >= 0 && toIdx > fromIdx -> NavDirection.Forward
+                                fromIdx >= 0 && toIdx >= 0 && toIdx < fromIdx -> NavDirection.Backward
+                                else -> NavDirection.None
+                            }
                             if (route == "home") {
                                 nav.navigate("home") {
                                     popUpTo("home") { inclusive = true }
@@ -187,96 +197,89 @@ fun AppNavHost(
             }
         }
     ) { padding ->
-        NavHost(
-            navController = nav,
-            startDestination = start,
-            modifier = Modifier.padding(padding),
+        CompositionLocalProvider(LocalNavDirection provides navDirection) {
+            NavHost(
+                navController = nav,
+                startDestination = start,
+                modifier = Modifier.padding(padding),
 
-            // ── 进入 ──
-            enterTransition = {
-                val from = initialState.destination.route.orEmpty()
-                val to = targetState.destination.route.orEmpty()
-                val fromIdx = orderForTransition.indexOf(from)
-                val toIdx = orderForTransition.indexOf(to)
-                if (fromIdx >= 0 && toIdx >= 0) {
-                    // Tab 之间：方向感横向滑动
-                    val forward = toIdx > fromIdx
+                enterTransition = {
+                    val from = initialState.destination.route.orEmpty()
+                    val to = targetState.destination.route.orEmpty()
+                    val fromIdx = orderForTransition.indexOf(from)
+                    val toIdx = orderForTransition.indexOf(to)
+                    if (fromIdx >= 0 && toIdx >= 0) {
+                        val forward = toIdx > fromIdx
+                        slideInHorizontally(
+                            initialOffsetX = { full -> if (forward) full else -full },
+                            animationSpec = tween(DUR_ENTER, easing = FastOutSlowInEasing),
+                        ) + fadeIn(tween(DUR_ENTER, easing = FastOutSlowInEasing))
+                    } else {
+                        detailEnter()
+                    }
+                },
+                exitTransition = {
+                    val from = initialState.destination.route.orEmpty()
+                    val to = targetState.destination.route.orEmpty()
+                    val fromIdx = orderForTransition.indexOf(from)
+                    val toIdx = orderForTransition.indexOf(to)
+                    if (fromIdx >= 0 && toIdx >= 0) {
+                        val forward = toIdx > fromIdx
+                        slideOutHorizontally(
+                            targetOffsetX = { full -> if (forward) -full / 3 else full / 3 },
+                            animationSpec = tween(DUR_EXIT, easing = FastOutSlowInEasing),
+                        ) + fadeOut(tween(DUR_EXIT, easing = FastOutSlowInEasing))
+                    } else {
+                        fadeOut(tween(DUR_EXIT, easing = FastOutSlowInEasing))
+                    }
+                },
+                popEnterTransition = {
                     slideInHorizontally(
-                        initialOffsetX = { full -> if (forward) full else -full },
+                        initialOffsetX = { -it / 4 },
                         animationSpec = tween(DUR_ENTER, easing = FastOutSlowInEasing),
                     ) + fadeIn(tween(DUR_ENTER, easing = FastOutSlowInEasing))
-                } else {
-                    // 进入详情类：右侧全屏滑入
-                    detailEnter()
+                },
+                popExitTransition = { detailPopExit() },
+            ) {
+                composable("home") { TasksScreen(nav) }
+                composable("tasks") { HomeScreen(nav) }
+                composable("calendar") { CalendarScreen(nav) }
+                composable("stats") { StatsScreen(nav) }
+
+                composable(
+                    "settings",
+                    enterTransition = { detailEnter() },
+                    popExitTransition = { detailPopExit() },
+                ) { SettingsScreen(nav) }
+
+                composable(
+                    "taskDetail/{id}",
+                    enterTransition = { detailEnter() },
+                    popExitTransition = { detailPopExit() },
+                ) { back ->
+                    val id = back.arguments?.getString("id")?.toLongOrNull() ?: 0L
+                    TaskDetailScreen(nav, id)
                 }
-            },
 
-            // ── 退出 ──
-            exitTransition = {
-                val from = initialState.destination.route.orEmpty()
-                val to = targetState.destination.route.orEmpty()
-                val fromIdx = orderForTransition.indexOf(from)
-                val toIdx = orderForTransition.indexOf(to)
-                if (fromIdx >= 0 && toIdx >= 0) {
-                    // Tab 之间：旧页只滑走 1/3 + 淡出（让位感）
-                    val forward = toIdx > fromIdx
-                    slideOutHorizontally(
-                        targetOffsetX = { full -> if (forward) -full / 3 else full / 3 },
-                        animationSpec = tween(DUR_EXIT, easing = FastOutSlowInEasing),
-                    ) + fadeOut(tween(DUR_EXIT, easing = FastOutSlowInEasing))
-                } else {
-                    fadeOut(tween(DUR_EXIT, easing = FastOutSlowInEasing))
+                composable(
+                    "taskEdit/{id}",
+                    enterTransition = { detailEnter() },
+                    popExitTransition = { detailPopExit() },
+                ) { back ->
+                    val id = back.arguments?.getString("id")?.toLongOrNull() ?: 0L
+                    TaskEditScreen(nav, id)
                 }
-            },
 
-            // ── 返回（从详情回到 Tab）：目标页从左侧 1/4 推回 ──
-            popEnterTransition = {
-                slideInHorizontally(
-                    initialOffsetX = { -it / 4 },
-                    animationSpec = tween(DUR_ENTER, easing = FastOutSlowInEasing),
-                ) + fadeIn(tween(DUR_ENTER, easing = FastOutSlowInEasing))
-            },
-            popExitTransition = { detailPopExit() },
-        ) {
-            composable("home") { TasksScreen(nav) }
-            composable("tasks") { HomeScreen(nav) }
-            composable("calendar") { CalendarScreen(nav) }
-            composable("stats") { StatsScreen(nav) }
-
-            composable(
-                "settings",
-                enterTransition = { detailEnter() },
-                popExitTransition = { detailPopExit() },
-            ) { SettingsScreen(nav) }
-
-            composable(
-                "taskDetail/{id}",
-                enterTransition = { detailEnter() },
-                popExitTransition = { detailPopExit() },
-            ) { back ->
-                val id = back.arguments?.getString("id")?.toLongOrNull() ?: 0L
-                TaskDetailScreen(nav, id)
+                composable(
+                    "presetEdit",
+                    enterTransition = { detailEnter() },
+                    popExitTransition = { detailPopExit() },
+                ) { PresetEditScreen(nav) }
             }
-
-            composable(
-                "taskEdit/{id}",
-                enterTransition = { detailEnter() },
-                popExitTransition = { detailPopExit() },
-            ) { back ->
-                val id = back.arguments?.getString("id")?.toLongOrNull() ?: 0L
-                TaskEditScreen(nav, id)
-            }
-
-            composable(
-                "presetEdit",
-                enterTransition = { detailEnter() },
-                popExitTransition = { detailPopExit() },
-            ) { PresetEditScreen(nav) }
         }
     }
 }
 
-// ---------- 可拖拽底栏（保持不变） ----------
 @Composable
 private fun DraggableNavBar(
     items: List<NavItem>,
