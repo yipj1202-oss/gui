@@ -30,30 +30,79 @@ fun TasksScreen(nav: NavController) {
         app.db.taskDao().doneFlow().collect { doneList = it }
     }
 
-    Column(Modifier.fillMaxSize()) {
-        Row(Modifier.fillMaxWidth().padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text("任务", Modifier.weight(1f), style = MaterialTheme.typography.headlineSmall)
-            FloatingActionButton(onClick = { nav.navigate("taskEdit/0") }) {
-                Icon(Icons.Filled.Add, contentDescription = "新建任务")
-            }
-        }
-        LazyColumn(Modifier.weight(1f)) {
-            if (activeList.isNotEmpty()) { item { Text("进行中", Modifier.padding(8.dp), style = MaterialTheme.typography.titleSmall) } }
-            items(activeList) { t ->
-                TaskRow(t) {
-                    kotlinx.coroutines.runBlocking {
-                        app.db.taskDao().update(t.copy(completed = true, completedAt = System.currentTimeMillis()))
-                    }
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = MaterialTheme.colorScheme.background
+    ) {
+        Column(Modifier.fillMaxSize()) {
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    "任务",
+                    Modifier.weight(1f),
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+                FloatingActionButton(onClick = { nav.navigate("taskEdit/0") }) {
+                    Icon(Icons.Filled.Add, contentDescription = "新建任务")
                 }
             }
-            if (doneList.isNotEmpty()) { item { Text("已完成", Modifier.padding(8.dp), style = MaterialTheme.typography.titleSmall) } }
-            items(doneList) { t ->
-                Row(
-                    Modifier.fillMaxWidth().padding(8.dp).clickable { nav.navigate("taskDetail/" + t.id) },
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(t.title, Modifier.weight(1f))
-                    Checkbox(checked = t.completed, onCheckedChange = { })
+            LazyColumn(
+                Modifier.weight(1f),
+                contentPadding = PaddingValues(bottom = 16.dp)
+            ) {
+                if (activeList.isNotEmpty()) {
+                    item {
+                        Text(
+                            "进行中",
+                            Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.onBackground
+                        )
+                    }
+                }
+                items(activeList) { t ->
+                    TaskRow(
+                        t = t,
+                        onClick = { nav.navigate("taskDetail/" + t.id) },
+                        onComplete = {
+                            kotlinx.coroutines.runBlocking {
+                                app.db.taskDao().update(
+                                    t.copy(completed = true, completedAt = System.currentTimeMillis())
+                                )
+                            }
+                        }
+                    )
+                }
+                if (doneList.isNotEmpty()) {
+                    item {
+                        Text(
+                            "已完成",
+                            Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.onBackground
+                        )
+                    }
+                }
+                items(doneList) { t ->
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .clickable { nav.navigate("taskDetail/" + t.id) }
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            t.title,
+                            Modifier.weight(1f),
+                            color = MaterialTheme.colorScheme.onBackground
+                        )
+                        Checkbox(checked = t.completed, onCheckedChange = { })
+                    }
                 }
             }
         }
@@ -61,8 +110,11 @@ fun TasksScreen(nav: NavController) {
 }
 
 @Composable
-fun TaskRow(t: Task, onComplete: () -> Unit) {
-    Card(Modifier.fillMaxWidth().padding(4.dp)) {
+fun TaskRow(t: Task, onClick: () -> Unit, onComplete: () -> Unit) {
+    Card(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth().padding(4.dp)
+    ) {
         Row(Modifier.padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text(t.title, style = MaterialTheme.typography.titleMedium)
