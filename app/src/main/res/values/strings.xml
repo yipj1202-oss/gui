@@ -39,4 +39,17 @@
     <string name="home_choose_task">选择关联任务</string>
     <string name="home_no_task">无任务 (直接专注)</string>
     <string name="home_not_started">未开始</string>
+    <string name="task_title">任务</string>
+    <string name="task_new_desc">新建任务</string>
+    <string name="task_section_active">进行中</string>
+    <string name="task_section_done">已完成</string>
+    <string name="task_new">新建任务</string>
+    <string name="task_edit">编辑任务</string>
+    <string name="task_field_title">标题</string>
+    <string name="task_field_note">备注</string>
+    <string name="task_save">保存</string>
+    <string name="task_add_image">添加图片</string>
+    <string name="task_start_pomodoro">开始番茄</string>
+    <string name="task_delete_desc">删除</string>
+    <string name="task_image_count">%1$d 张图片</string>
 </resources>

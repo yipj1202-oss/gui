@@ -7,9 +7,11 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.gui.tomato.GuiApp
+import com.gui.tomato.R
 import com.gui.tomato.data.entities.Task
 import com.gui.tomato.data.entities.TaskImage
 import com.gui.tomato.data.image.ImageStore
@@ -31,12 +33,12 @@ fun TaskEditScreen(nav: NavController, taskId: Long) {
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { pickedUri = it }
 
     Column(Modifier.fillMaxSize().padding(16.dp)) {
-        Text(if (taskId == 0L) "新建任务" else "编辑任务", style = MaterialTheme.typography.headlineSmall)
+        Text(if (taskId == 0L) stringResource(R.string.task_new) else stringResource(R.string.task_edit), style = MaterialTheme.typography.headlineSmall)
         Spacer(Modifier.height(8.dp))
-        OutlinedTextField(title, onValueChange = { title = it }, label = { Text("标题") },
+        OutlinedTextField(title, onValueChange = { title = it }, label = { Text(stringResource(R.string.task_field_title)) },
             modifier = Modifier.fillMaxWidth())
         Spacer(Modifier.height(8.dp))
-        OutlinedTextField(note, onValueChange = { note = it }, label = { Text("备注") },
+        OutlinedTextField(note, onValueChange = { note = it }, label = { Text(stringResource(R.string.task_field_note)) },
             modifier = Modifier.fillMaxWidth())
         Spacer(Modifier.height(8.dp))
         Button(onClick = {
@@ -54,8 +56,8 @@ fun TaskEditScreen(nav: NavController, taskId: Long) {
                 }
             }
             nav.popBackStack()
-        }, modifier = Modifier.fillMaxWidth()) { Text("保存") }
+        }, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.task_save)) }
         Spacer(Modifier.height(8.dp))
-        OutlinedButton(onClick = { picker.launch("image/*") }, modifier = Modifier.fillMaxWidth()) { Text("添加图片") }
+        OutlinedButton(onClick = { picker.launch("image/*") }, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.task_add_image)) }
     }
 }

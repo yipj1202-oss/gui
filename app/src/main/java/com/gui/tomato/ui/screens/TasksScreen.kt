@@ -10,9 +10,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.gui.tomato.GuiApp
+import com.gui.tomato.R
 import com.gui.tomato.data.entities.Task
 
 @Composable
@@ -41,13 +43,13 @@ fun TasksScreen(nav: NavController) {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    "任务",
+                    stringResource(R.string.task_title),
                     Modifier.weight(1f),
                     style = MaterialTheme.typography.headlineSmall,
                     color = MaterialTheme.colorScheme.onBackground
                 )
                 FloatingActionButton(onClick = { nav.navigate("taskEdit/0") }) {
-                    Icon(Icons.Filled.Add, contentDescription = "新建任务")
+                    Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.task_new_desc))
                 }
             }
             LazyColumn(
@@ -57,7 +59,7 @@ fun TasksScreen(nav: NavController) {
                 if (activeList.isNotEmpty()) {
                     item {
                         Text(
-                            "进行中",
+                            stringResource(R.string.task_section_active),
                             Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                             style = MaterialTheme.typography.titleSmall,
                             color = MaterialTheme.colorScheme.onBackground
@@ -83,7 +85,7 @@ fun TasksScreen(nav: NavController) {
                 if (doneList.isNotEmpty()) {
                     item {
                         Text(
-                            "已完成",
+                            stringResource(R.string.task_section_done),
                             Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                             style = MaterialTheme.typography.titleSmall,
                             color = MaterialTheme.colorScheme.onBackground

@@ -14,10 +14,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.gui.tomato.GuiApp
+import com.gui.tomato.R
 import com.gui.tomato.data.entities.TaskImage
 import com.gui.tomato.data.image.ImageStore
 
@@ -45,7 +47,7 @@ fun TaskDetailScreen(nav: NavController, taskId: Long) {
                     popUpTo("home") { inclusive = true }
                 }
             }) {
-                Text("开始番茄")
+                Text(stringResource(R.string.task_start_pomodoro))
             }
             Spacer(Modifier.weight(1f))
             IconButton(onClick = {
@@ -53,7 +55,7 @@ fun TaskDetailScreen(nav: NavController, taskId: Long) {
                 imgStore.deleteForTask(taskId)
                 nav.popBackStack()
             }) {
-                Icon(Icons.Filled.Delete, contentDescription = "删除")
+                Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.task_delete_desc))
             }
         }
         Spacer(Modifier.height(8.dp))
@@ -73,6 +75,6 @@ fun TaskDetailScreen(nav: NavController, taskId: Long) {
                 )
             }
         }
-        Text("${imgs.size} 张图片", style = MaterialTheme.typography.labelSmall)
+        Text(stringResource(R.string.task_image_count, imgs.size), style = MaterialTheme.typography.labelSmall)
     }
 }

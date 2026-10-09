@@ -39,4 +39,17 @@
     <string name="home_choose_task">Choose Task</string>
     <string name="home_no_task">No task (focus directly)</string>
     <string name="home_not_started">Not started</string>
+    <string name="task_title">Tasks</string>
+    <string name="task_new_desc">New Task</string>
+    <string name="task_section_active">Active</string>
+    <string name="task_section_done">Completed</string>
+    <string name="task_new">New Task</string>
+    <string name="task_edit">Edit Task</string>
+    <string name="task_field_title">Title</string>
+    <string name="task_field_note">Note</string>
+    <string name="task_save">Save</string>
+    <string name="task_add_image">Add Image</string>
+    <string name="task_start_pomodoro">Start Pomodoro</string>
+    <string name="task_delete_desc">Delete</string>
+    <string name="task_image_count">%1$d images</string>
 </resources>
