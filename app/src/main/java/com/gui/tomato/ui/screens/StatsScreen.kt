@@ -14,10 +14,12 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -26,6 +28,12 @@ import com.gui.tomato.GuiApp
 import com.gui.tomato.R
 import com.gui.tomato.data.HourStatRow
 import com.gui.tomato.data.TaskStatRow
+
+private val DarkBg = Color(0xFF0D0D0D)
+private val DarkCard = Color(0xFF1A1A1A)
+private val DarkTrack = Color(0xFF2A2A2A)
+private val DarkTextSub = Color(0xFF8A8A8A)
+private val DarkTextMain = Color(0xFFFFFFFF)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -54,80 +62,104 @@ fun StatsScreen(nav: NavController) {
         hours = app.byHourSafe(from, now)
     }
 
-    val maxTask = rows.maxOfOrNull { it.focusMin }?.takeIf { it > 0 } ?: 1
+    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
+    val bgColor = if (isDark) DarkBg else MaterialTheme.colorScheme.background
+    val cardColor = if (isDark) DarkCard else Color.White
+    val textMain = if (isDark) DarkTextMain else MaterialTheme.colorScheme.onBackground
+    val textSub = if (isDark) DarkTextSub else MaterialTheme.colorScheme.outline
+    val trackColor = if (isDark) DarkTrack else Color(0xFFEAEAEA)
+    val gridColor = if (isDark) Color(0xFF2A2A2A) else Color(0xFFE0E0E0)
 
     val primary = MaterialTheme.colorScheme.primary
     val secondary = MaterialTheme.colorScheme.secondary
-    val outline = MaterialTheme.colorScheme.outline
-    val onSurface = MaterialTheme.colorScheme.onSurface
-    val gridColor = outline.copy(alpha = 0.18f)
-    val trackColor = outline.copy(alpha = 0.15f)
+
+    val maxTask = rows.maxOfOrNull { it.focusMin }?.takeIf { it > 0 } ?: 1
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text(stringResource(R.string.stats_title)) }) }
+        containerColor = bgColor,
+        topBar = {
+            TopAppBar(
+                title = {
+                    Text(
+                        stringResource(R.string.nav_stats),
+                        color = textMain,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
+            )
+        }
     ) { pad ->
         Column(
             modifier = Modifier
                 .padding(pad)
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 8.dp)
+                .padding(horizontal = 16.dp)
         ) {
+            Spacer(Modifier.height(8.dp))
+
+            // 范围选择
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                val ranges = listOf(
-                    stringResource(R.string.stats_today),
-                    stringResource(R.string.stats_week),
-                    stringResource(R.string.stats_month)
-                )
-                ranges.forEachIndexed { i, l ->
+                val labels = listOf("今天", "本周", "本月")
+                labels.forEachIndexed { i, l ->
                     FilterChip(
                         selected = range == i,
                         onClick = { range = i },
-                        label = { Text(l) }
+                        label = { Text(l) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = primary.copy(alpha = 0.18f),
+                            selectedLabelColor = primary,
+                            labelColor = textSub
+                        )
                     )
                 }
             }
 
             Spacer(Modifier.height(20.dp))
-            Text(stringResource(R.string.stats_task_distribution), style = MaterialTheme.typography.titleMedium)
+
+            // 按任务分布
+            Text("按任务分布", style = MaterialTheme.typography.titleMedium, color = textMain)
             Spacer(Modifier.height(12.dp))
             if (rows.isEmpty() || rows.all { it.focusMin == 0 }) {
-                EmptyHint(stringResource(R.string.stats_no_focus_data))
+                EmptyHint("暂无专注数据", textSub)
             } else {
                 rows.take(10).forEach { r ->
-                    TaskBarRow(r, maxTask, primary, trackColor, onSurface)
+                    TaskBarRow(r, maxTask, primary, trackColor, textMain, textSub)
                 }
             }
 
             Spacer(Modifier.height(28.dp))
-            Text(stringResource(R.string.stats_hourly_distribution), style = MaterialTheme.typography.titleMedium)
+
+            // 时段分布
+            Text("时段分布", style = MaterialTheme.typography.titleMedium, color = textMain)
             Spacer(Modifier.height(12.dp))
             if (hours.isEmpty() || hours.all { it.focusMin == 0 }) {
-                EmptyHint(stringResource(R.string.stats_no_hourly_data))
+                EmptyHint("暂无数值数据", textSub)
             } else {
                 HourBarChart(
                     hours = hours,
                     barColor = primary,
                     lineColor = secondary,
                     gridColor = gridColor,
-                    labelColor = onSurface,
+                    labelColor = textSub,
                     labelStyle = MaterialTheme.typography.labelSmall
                 )
             }
 
             Spacer(Modifier.height(16.dp))
-            Legend(primary, secondary)
+            Legend(primary, secondary, textSub)
             Spacer(Modifier.height(32.dp))
         }
     }
 }
 
 @Composable
-private fun EmptyHint(text: String) {
+private fun EmptyHint(text: String, color: Color) {
     Text(
         text,
         style = MaterialTheme.typography.bodyMedium,
-        color = MaterialTheme.colorScheme.outline,
+        color = color,
         modifier = Modifier.padding(vertical = 12.dp)
     )
 }
@@ -138,16 +170,9 @@ private fun TaskBarRow(
     maxTask: Int,
     barColor: Color,
     trackColor: Color,
-    labelColor: Color
+    textMain: Color,
+    textSub: Color
 ) {
-    val deletedStr = stringResource(R.string.stats_task_deleted)
-    val unspecifiedStr = stringResource(R.string.stats_task_unspecified)
-    val taskNameDisplay = when (r.taskName) {
-        "已删除" -> deletedStr
-        "未指定" -> unspecifiedStr
-        else -> r.taskName
-    }
-
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -155,9 +180,9 @@ private fun TaskBarRow(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
-            taskNameDisplay,
+            r.taskName,
             style = MaterialTheme.typography.bodyMedium,
-            color = labelColor,
+            color = textMain,
             modifier = Modifier.width(90.dp),
             maxLines = 1
         )
@@ -185,9 +210,9 @@ private fun TaskBarRow(
         }
         Spacer(Modifier.width(8.dp))
         Text(
-            stringResource(R.string.stats_task_row_format, r.focusMin, r.pomodoros),
+            "${r.focusMin}分 · ${r.pomodoros}个",
             style = MaterialTheme.typography.bodySmall,
-            color = labelColor,
+            color = textSub,
             modifier = Modifier.width(78.dp)
         )
     }
@@ -204,7 +229,6 @@ private fun HourBarChart(
 ) {
     val textMeasurer = rememberTextMeasurer()
     val hourMap = remember(hours) { hours.associateBy { it.hour } }
-    val hourSuffix = stringResource(R.string.stats_hour_suffix)
 
     val rawMax = hours.maxOfOrNull { it.focusMin } ?: 1
     val displayMax = when {
@@ -305,7 +329,7 @@ private fun HourBarChart(
 
         listOf(0, 6, 12, 18, 23).forEach { hour ->
             val x = leftPad + hour * slotW + slotW / 2f
-            val layout = textMeasurer.measure("$hour$hourSuffix", labelStyle)
+            val layout = textMeasurer.measure("${hour}时", labelStyle)
             drawText(
                 textLayoutResult = layout,
                 color = labelColor,
@@ -319,26 +343,20 @@ private fun HourBarChart(
 }
 
 @Composable
-private fun Legend(barColor: Color, lineColor: Color) {
+private fun Legend(barColor: Color, lineColor: Color, textColor: Color) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Box(
-            modifier = Modifier
-                .size(10.dp)
-                .padding(0.dp)
-        ) {
-            Canvas(modifier = Modifier.fillMaxSize()) {
-                drawRoundRect(
-                    color = barColor,
-                    cornerRadius = CornerRadius(3.dp.toPx(), 3.dp.toPx())
-                )
-            }
+        Canvas(modifier = Modifier.size(10.dp)) {
+            drawRoundRect(
+                color = barColor,
+                cornerRadius = CornerRadius(3.dp.toPx(), 3.dp.toPx())
+            )
         }
         Spacer(Modifier.width(6.dp))
-        Text(stringResource(R.string.stats_legend_focus_min), style = MaterialTheme.typography.labelSmall)
+        Text("专注分钟", style = MaterialTheme.typography.labelSmall, color = textColor)
         Spacer(Modifier.width(20.dp))
         Canvas(modifier = Modifier.size(16.dp)) {
             drawLine(
@@ -350,6 +368,6 @@ private fun Legend(barColor: Color, lineColor: Color) {
             drawCircle(color = lineColor, radius = 3.dp.toPx(), center = Offset(size.width / 2f, size.height / 2f))
         }
         Spacer(Modifier.width(6.dp))
-        Text(stringResource(R.string.stats_legend_trend), style = MaterialTheme.typography.labelSmall)
+        Text("趋势", style = MaterialTheme.typography.labelSmall, color = textColor)
     }
 }
