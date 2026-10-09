@@ -12,9 +12,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.gui.tomato.GuiApp
+import com.gui.tomato.R
 import com.gui.tomato.data.entities.PomodoroPreset
 import com.gui.tomato.data.entities.Task
 import com.gui.tomato.engine.Snapshot
@@ -34,6 +36,8 @@ fun HomeScreen(nav: NavController) {
     var presetList by remember { mutableStateOf<List<PomodoroPreset>>(emptyList()) }
     var activeTasks by remember { mutableStateOf<List<Task>>(emptyList()) }
     var currentTaskTitle by remember { mutableStateOf<String?>(null) }
+
+    val unknownTaskStr = stringResource(R.string.home_task_unknown)
 
     LaunchedEffect(Unit) {
         while (true) {
@@ -60,7 +64,7 @@ fun HomeScreen(nav: NavController) {
             val task = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
                 app.db.taskDao().getById(id)
             }
-            currentTaskTitle = task?.title ?: "未知任务"
+            currentTaskTitle = task?.title ?: unknownTaskStr
         } else {
             currentTaskTitle = null
         }
@@ -69,10 +73,10 @@ fun HomeScreen(nav: NavController) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("晷") },
+                title = { Text(stringResource(R.string.home_title)) },
                 actions = {
                     IconButton(onClick = { nav.navigate("settings") }) {
-                        Icon(Icons.Filled.Settings, contentDescription = "设置")
+                        Icon(Icons.Filled.Settings, contentDescription = stringResource(R.string.home_settings))
                     }
                 }
             )
@@ -91,17 +95,17 @@ fun HomeScreen(nav: NavController) {
                 color = MaterialTheme.colorScheme.surfaceVariant
             ) {
                 Text(
-                    text = "方案：${app.repo.engine.preset.name} (${app.repo.engine.preset.focusMin}+${app.repo.engine.preset.shortBreakMin}) ▾",
+                    text = stringResource(R.string.home_preset_prefix) + "${app.repo.engine.preset.name} (${app.repo.engine.preset.focusMin}+${app.repo.engine.preset.shortBreakMin}) " + stringResource(R.string.home_preset_suffix),
                     style = MaterialTheme.typography.labelMedium,
                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
                 )
             }
             Spacer(Modifier.height(24.dp))
-            ProgressRing(progress = ringProgress(snap), sizeDp = 240, label = formatRemain(snap))
+            ProgressRing(progress = ringProgress(snap), sizeDp = 240, label = formatRemain(snap, stringResource(R.string.home_not_started)))
             Spacer(Modifier.height(16.dp))
             if (snap.taskId != null) {
                 Text(
-                    text = "正在专注: ${currentTaskTitle ?: "加载中..."}",
+                    text = stringResource(R.string.home_focusing_on, currentTaskTitle ?: stringResource(R.string.home_task_loading)),
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.primary
                 )
@@ -109,29 +113,29 @@ fun HomeScreen(nav: NavController) {
             Spacer(Modifier.height(16.dp))
             when (snap.state) {
                 State.IDLE -> Button(onClick = { showTaskSheet = true }) {
-                    Text("开始专注")
+                    Text(stringResource(R.string.home_start_focus))
                 }
                 else -> Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     if (snap.isPaused) {
                         Button(onClick = { app.repo.resume(); snap = app.repo.current() }) {
-                            Text("继续")
+                            Text(stringResource(R.string.home_resume))
                         }
                     } else {
                         OutlinedButton(onClick = { app.repo.pause(); snap = app.repo.current() }) {
-                            Text("暂停")
+                            Text(stringResource(R.string.home_pause))
                         }
                     }
                     OutlinedButton(onClick = { app.repo.skip(); snap = app.repo.current() }) {
-                        Text("跳过")
+                        Text(stringResource(R.string.home_skip))
                     }
                     Button(onClick = { app.repo.finish(); app.serviceStop(); snap = app.repo.current() }) {
-                        Text("结束")
+                        Text(stringResource(R.string.home_finish))
                     }
                 }
             }
             Spacer(Modifier.height(24.dp))
             Text(
-                text = "今日 ${app.todayFocusCountSafe()} 番茄 · ${app.todayFocusMinutesSafe()} 分钟",
+                text = stringResource(R.string.home_today_summary, app.todayFocusCountSafe(), app.todayFocusMinutesSafe()),
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.clickable { nav.navigate("stats") }
             )
@@ -146,14 +150,14 @@ fun HomeScreen(nav: NavController) {
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("选择番茄方案", style = MaterialTheme.typography.titleLarge)
+                    Text(stringResource(R.string.home_choose_preset), style = MaterialTheme.typography.titleLarge)
                     TextButton(onClick = {
                         showPresetSheet = false
                         nav.navigate("presetEdit")
                     }) {
                         Icon(Icons.Filled.Add, contentDescription = null)
                         Spacer(Modifier.width(4.dp))
-                        Text("新建方案")
+                        Text(stringResource(R.string.home_new_preset))
                     }
                 }
                 Spacer(Modifier.height(8.dp))
@@ -162,8 +166,8 @@ fun HomeScreen(nav: NavController) {
                         val isCurrent = app.repo.engine.preset.id == p.id || app.repo.engine.preset.name == p.name
                         ListItem(
                             headlineContent = { Text(p.name) },
-                            supportingContent = { Text("专注 ${p.focusMin}分 · 短休 ${p.shortBreakMin}分 · 长休 ${p.longBreakMin}分 (每${p.longBreakEvery}个)") },
-                            trailingContent = { if (isCurrent) Text("使用中", color = MaterialTheme.colorScheme.primary) },
+                            supportingContent = { Text(stringResource(R.string.home_preset_detail, p.focusMin, p.shortBreakMin, p.longBreakMin, p.longBreakEvery)) },
+                            trailingContent = { if (isCurrent) Text(stringResource(R.string.home_in_use), color = MaterialTheme.colorScheme.primary) },
                             modifier = Modifier.clickable {
                                 app.repo.applyPreset(p)
                                 snap = app.repo.current()
@@ -180,10 +184,10 @@ fun HomeScreen(nav: NavController) {
     if (showTaskSheet) {
         ModalBottomSheet(onDismissRequest = { showTaskSheet = false }) {
             Column(Modifier.padding(16.dp)) {
-                Text("选择关联任务", style = MaterialTheme.typography.titleLarge)
+                Text(stringResource(R.string.home_choose_task), style = MaterialTheme.typography.titleLarge)
                 Spacer(Modifier.height(12.dp))
                 ListItem(
-                    headlineContent = { Text("无任务 (直接专注)") },
+                    headlineContent = { Text(stringResource(R.string.home_no_task)) },
                     modifier = Modifier.clickable {
                         showTaskSheet = false
                         app.repo.start(taskId = null)
@@ -212,5 +216,5 @@ fun HomeScreen(nav: NavController) {
 
 private fun ringProgress(s: Snapshot): Float =
     if (s.plannedMs == 0L) 0f else 1f - (s.remainMs.toFloat() / s.plannedMs.toFloat())
-private fun formatRemain(s: Snapshot): String =
-    if (s.plannedMs == 0L) "未开始" else String.format("%02d:%02d", s.remainMs / 60000, (s.remainMs % 60000) / 1000)
+private fun formatRemain(s: Snapshot, notStartedStr: String): String =
+    if (s.plannedMs == 0L) notStartedStr else String.format("%02d:%02d", s.remainMs / 60000, (s.remainMs % 60000) / 1000)
