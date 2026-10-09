@@ -1,6 +1,5 @@
 package com.gui.tomato.ui.screens
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -13,12 +12,15 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.gui.tomato.GuiApp
 import com.gui.tomato.R
@@ -28,6 +30,8 @@ private val DarkBg = Color(0xFF0D0D0D)
 private val DarkCard = Color(0xFF1A1A1A)
 private val DarkTextSub = Color(0xFF8A8A8A)
 private val DarkTextMain = Color(0xFFFFFFFF)
+private val OrangeStart = Color(0xFFE4572E)
+private val OrangeEnd = Color(0xFFFFA35C)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -61,7 +65,20 @@ fun TasksScreen(nav: NavController) {
                         fontWeight = FontWeight.SemiBold
                     )
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
+                actions = {
+                    IconButton(onClick = { nav.navigate("settings") }) {
+                        Text(
+                            text = "晷",
+                            fontSize = 24.sp,
+                            fontWeight = FontWeight.Thin,
+                            letterSpacing = 1.sp,
+                            style = TextStyle(
+                                brush = Brush.linearGradient(listOf(OrangeStart, OrangeEnd))
+                            )
+                        )
+                    }
+                }
             )
         },
         floatingActionButton = {
@@ -86,7 +103,7 @@ fun TasksScreen(nav: NavController) {
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        "暂无任务",
+                        "暂无任务，点右下角 + 添加",
                         color = textSub,
                         style = MaterialTheme.typography.bodyMedium
                     )
@@ -108,13 +125,12 @@ fun TasksScreen(nav: NavController) {
                                 modifier = Modifier.padding(start = 4.dp, top = 8.dp, bottom = 4.dp)
                             )
                         }
-                        items(activeList) { t ->
+                        items(activeList, key = { it.id }) { t ->
                             TaskCard(
                                 task = t,
                                 cardColor = cardColor,
                                 textMain = textMain,
                                 textSub = textSub,
-                                isDark = isDark,
                                 onToggle = {
                                     kotlinx.coroutines.runBlocking {
                                         app.db.taskDao().update(
@@ -135,13 +151,12 @@ fun TasksScreen(nav: NavController) {
                                 modifier = Modifier.padding(start = 4.dp, top = 16.dp, bottom = 4.dp)
                             )
                         }
-                        items(doneList) { t ->
+                        items(doneList, key = { it.id }) { t ->
                             TaskCard(
                                 task = t,
                                 cardColor = cardColor,
                                 textMain = textMain,
                                 textSub = textSub,
-                                isDark = isDark,
                                 onToggle = {
                                     kotlinx.coroutines.runBlocking {
                                         app.db.taskDao().update(
@@ -165,7 +180,6 @@ private fun TaskCard(
     cardColor: Color,
     textMain: Color,
     textSub: Color,
-    isDark: Boolean,
     onToggle: () -> Unit,
     onClick: () -> Unit
 ) {

@@ -1,6 +1,11 @@
 package com.gui.tomato.ui.screens
 
-import androidx.compose.foundation.BorderStroke
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -16,16 +21,21 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.PlatformTextStyle
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
@@ -38,9 +48,11 @@ import com.gui.tomato.engine.State
 
 private val DarkBg = Color(0xFF0D0D0D)
 private val DarkCard = Color(0xFF1A1A1A)
-private val DarkTrack = Color(0xFF2A2A2A)
+private val DarkTrack = Color(0xFF262626)
 private val DarkTextSub = Color(0xFF8A8A8A)
 private val DarkTextMain = Color(0xFFFFFFFF)
+private val OrangeStart = Color(0xFFE4572E)
+private val OrangeEnd = Color(0xFFFFA35C)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -84,6 +96,8 @@ fun HomeScreen(nav: NavController) {
 
     val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
     val bgColor = if (isDark) DarkBg else MaterialTheme.colorScheme.background
+    val textMain = if (isDark) DarkTextMain else MaterialTheme.colorScheme.onBackground
+    val textSub = if (isDark) DarkTextSub else MaterialTheme.colorScheme.outline
 
     Scaffold(
         containerColor = bgColor,
@@ -91,9 +105,13 @@ fun HomeScreen(nav: NavController) {
             TopAppBar(
                 title = {
                     Text(
-                        stringResource(R.string.home_title),
-                        color = if (isDark) DarkTextMain else MaterialTheme.colorScheme.onBackground,
-                        fontWeight = FontWeight.SemiBold
+                        text = "晷",
+                        fontSize = 26.sp,
+                        fontWeight = FontWeight.Thin,
+                        letterSpacing = 2.sp,
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            brush = Brush.linearGradient(listOf(OrangeStart, OrangeEnd))
+                        )
                     )
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
@@ -102,7 +120,7 @@ fun HomeScreen(nav: NavController) {
                         Icon(
                             Icons.Filled.Settings,
                             contentDescription = stringResource(R.string.home_settings),
-                            tint = if (isDark) DarkTextSub else MaterialTheme.colorScheme.onBackground
+                            tint = textSub
                         )
                     }
                 }
@@ -115,13 +133,13 @@ fun HomeScreen(nav: NavController) {
                 .fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Spacer(Modifier.height(4.dp))
+            Spacer(Modifier.height(8.dp))
 
-            StatusChip(snap.state, snap.isPaused, isDark)
+            StatusLine(snap.state, snap.isPaused, isDark)
 
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(16.dp))
 
-            PresetChip(
+            PresetLine(
                 name = app.repo.engine.preset.name,
                 focusMin = app.repo.engine.preset.focusMin,
                 shortBreakMin = app.repo.engine.preset.shortBreakMin,
@@ -129,11 +147,11 @@ fun HomeScreen(nav: NavController) {
                 onClick = { showPresetSheet = true }
             )
 
-            Spacer(Modifier.height(28.dp))
+            Spacer(Modifier.height(36.dp))
 
             DashboardRing(snap = snap, isDark = isDark)
 
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(20.dp))
 
             if (snap.taskId != null) {
                 Text(
@@ -141,12 +159,13 @@ fun HomeScreen(nav: NavController) {
                         R.string.home_focusing_on,
                         currentTaskTitle ?: stringResource(R.string.home_task_loading)
                     ),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.primary
+                    fontSize = 12.sp,
+                    letterSpacing = 1.sp,
+                    color = textSub
                 )
             }
 
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(28.dp))
 
             ControlButtons(
                 snap = snap,
@@ -165,17 +184,21 @@ fun HomeScreen(nav: NavController) {
                     app.todayFocusCountSafe(),
                     app.todayFocusMinutesSafe()
                 ),
-                style = MaterialTheme.typography.bodyMedium,
-                color = if (isDark) DarkTextSub else MaterialTheme.colorScheme.outline,
+                fontSize = 12.sp,
+                letterSpacing = 2.sp,
+                color = textSub,
                 modifier = Modifier
                     .clickable { nav.navigate("stats") }
-                    .padding(16.dp)
+                    .padding(20.dp)
             )
         }
     }
 
     if (showPresetSheet) {
-        ModalBottomSheet(onDismissRequest = { showPresetSheet = false }) {
+        ModalBottomSheet(
+            onDismissRequest = { showPresetSheet = false },
+            containerColor = if (isDark) DarkCard else MaterialTheme.colorScheme.surface
+        ) {
             Column(Modifier.padding(16.dp)) {
                 Row(
                     Modifier.fillMaxWidth(),
@@ -202,7 +225,7 @@ fun HomeScreen(nav: NavController) {
                                 Text(stringResource(R.string.home_preset_detail, p.focusMin, p.shortBreakMin, p.longBreakMin, p.longBreakEvery))
                             },
                             trailingContent = {
-                                if (isCurrent) Text(stringResource(R.string.home_in_use), color = MaterialTheme.colorScheme.primary)
+                                if (isCurrent) Text(stringResource(R.string.home_in_use), color = OrangeStart)
                             },
                             modifier = Modifier.clickable {
                                 app.repo.applyPreset(p)
@@ -210,7 +233,7 @@ fun HomeScreen(nav: NavController) {
                                 showPresetSheet = false
                             }
                         )
-                        HorizontalDivider()
+                        HorizontalDivider(color = Color.White.copy(alpha = 0.06f))
                     }
                 }
             }
@@ -218,7 +241,10 @@ fun HomeScreen(nav: NavController) {
     }
 
     if (showTaskSheet) {
-        ModalBottomSheet(onDismissRequest = { showTaskSheet = false }) {
+        ModalBottomSheet(
+            onDismissRequest = { showTaskSheet = false },
+            containerColor = if (isDark) DarkCard else MaterialTheme.colorScheme.surface
+        ) {
             Column(Modifier.padding(16.dp)) {
                 Text(stringResource(R.string.home_choose_task), style = MaterialTheme.typography.titleLarge)
                 Spacer(Modifier.height(12.dp))
@@ -230,7 +256,7 @@ fun HomeScreen(nav: NavController) {
                         app.serviceStart()
                     }
                 )
-                HorizontalDivider()
+                HorizontalDivider(color = Color.White.copy(alpha = 0.06f))
                 LazyColumn(contentPadding = PaddingValues(bottom = 24.dp)) {
                     items(activeTasks) { task ->
                         ListItem(
@@ -242,7 +268,7 @@ fun HomeScreen(nav: NavController) {
                                 app.serviceStart()
                             }
                         )
-                        HorizontalDivider()
+                        HorizontalDivider(color = Color.White.copy(alpha = 0.06f))
                     }
                 }
             }
@@ -251,7 +277,7 @@ fun HomeScreen(nav: NavController) {
 }
 
 @Composable
-private fun StatusChip(state: State, isPaused: Boolean, isDark: Boolean) {
+private fun StatusLine(state: State, isPaused: Boolean, isDark: Boolean) {
     val label = when {
         isPaused -> "PAUSED"
         state == State.FOCUS -> "FOCUS"
@@ -261,35 +287,43 @@ private fun StatusChip(state: State, isPaused: Boolean, isDark: Boolean) {
     }
     val dotColor = when {
         isPaused -> Color(0xFFFFB300)
-        state == State.FOCUS -> MaterialTheme.colorScheme.primary
+        state == State.FOCUS -> OrangeStart
         state == State.SHORT_BREAK || state == State.LONG_BREAK -> Color(0xFF4CAF50)
-        else -> if (isDark) DarkTextSub else MaterialTheme.colorScheme.outline
+        else -> Color(0xFF666666)
     }
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier
-            .clip(RoundedCornerShape(999.dp))
-            .background(if (isDark) DarkCard else MaterialTheme.colorScheme.surfaceVariant)
-            .padding(horizontal = 12.dp, vertical = 6.dp)
-    ) {
+
+    val infinite = rememberInfiniteTransition(label = "breath")
+    val breathAlpha by infinite.animateFloat(
+        initialValue = 0.4f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1400, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "breathAlpha"
+    )
+
+    Row(verticalAlignment = Alignment.CenterVertically) {
         Box(
             modifier = Modifier
                 .size(6.dp)
                 .clip(CircleShape)
+                .alpha(if (state != State.IDLE) breathAlpha else 1f)
                 .background(dotColor)
         )
-        Spacer(Modifier.width(8.dp))
+        Spacer(Modifier.width(10.dp))
         Text(
             text = label,
             fontSize = 11.sp,
-            letterSpacing = 1.5.sp,
-            color = if (isDark) DarkTextSub else MaterialTheme.colorScheme.onSurfaceVariant
+            fontWeight = FontWeight.Light,
+            letterSpacing = 5.sp,
+            color = if (isDark) DarkTextSub else MaterialTheme.colorScheme.outline
         )
     }
 }
 
 @Composable
-private fun PresetChip(
+private fun PresetLine(
     name: String,
     focusMin: Int,
     shortBreakMin: Int,
@@ -300,27 +334,27 @@ private fun PresetChip(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .clip(RoundedCornerShape(999.dp))
-            .background(if (isDark) DarkCard else MaterialTheme.colorScheme.surfaceVariant)
             .clickable { onClick() }
             .padding(horizontal = 14.dp, vertical = 6.dp)
     ) {
         Text(
             text = "$name  ·  $focusMin + $shortBreakMin",
-            fontSize = 12.sp,
-            color = if (isDark) DarkTextSub else MaterialTheme.colorScheme.onSurfaceVariant
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Light,
+            letterSpacing = 2.sp,
+            color = if (isDark) DarkTextSub else MaterialTheme.colorScheme.outline
         )
         Spacer(Modifier.width(6.dp))
         Text(
             text = "▾",
-            fontSize = 10.sp,
-            color = if (isDark) DarkTextSub else MaterialTheme.colorScheme.onSurfaceVariant
+            fontSize = 9.sp,
+            color = if (isDark) DarkTextSub else MaterialTheme.colorScheme.outline
         )
     }
 }
 
 @Composable
 private fun DashboardRing(snap: Snapshot, isDark: Boolean) {
-    val primary = MaterialTheme.colorScheme.primary
     val trackColor = if (isDark) DarkTrack else Color(0xFFEAEAEA)
     val textColor = if (isDark) DarkTextMain else MaterialTheme.colorScheme.onBackground
     val subColor = if (isDark) DarkTextSub else MaterialTheme.colorScheme.outline
@@ -339,28 +373,28 @@ private fun DashboardRing(snap: Snapshot, isDark: Boolean) {
         contentAlignment = Alignment.Center
     ) {
         Canvas(modifier = Modifier.fillMaxSize()) {
-            val strokeWidth = 5.dp.toPx()
-            val radius = size.minDimension / 2f - 28.dp.toPx()
+            val strokeWidth = 4.dp.toPx()
+            val radius = size.minDimension / 2f - 30.dp.toPx()
             val center = Offset(size.width / 2f, size.height / 2f)
 
             val tickCount = 60
             for (i in 0 until tickCount) {
                 val angleRad = Math.toRadians((i * 360f / tickCount - 90f).toDouble())
                 val isMajor = i % 5 == 0
-                val tickLen = if (isMajor) 10.dp.toPx() else 5.dp.toPx()
-                val startR = radius + 20.dp.toPx()
+                val tickLen = if (isMajor) 9.dp.toPx() else 4.dp.toPx()
+                val startR = radius + 22.dp.toPx()
                 val endR = startR + tickLen
                 val sx = center.x + (startR * Math.cos(angleRad)).toFloat()
                 val sy = center.y + (startR * Math.sin(angleRad)).toFloat()
                 val ex = center.x + (endR * Math.cos(angleRad)).toFloat()
                 val ey = center.y + (endR * Math.sin(angleRad)).toFloat()
                 val done = i.toFloat() / tickCount <= progress
-                val tickColor = if (done) primary else trackColor
+                val tickColor = if (done) OrangeStart else trackColor
                 drawLine(
                     color = tickColor,
                     start = Offset(sx, sy),
                     end = Offset(ex, ey),
-                    strokeWidth = if (isMajor) 2.5.dp.toPx() else 1.2.dp.toPx(),
+                    strokeWidth = if (isMajor) 2.dp.toPx() else 1.dp.toPx(),
                     cap = StrokeCap.Round
                 )
             }
@@ -376,7 +410,9 @@ private fun DashboardRing(snap: Snapshot, isDark: Boolean) {
             )
             if (progress > 0f) {
                 drawArc(
-                    color = primary,
+                    brush = Brush.sweepGradient(
+                        colors = listOf(OrangeStart, OrangeEnd, OrangeStart)
+                    ),
                     startAngle = -90f,
                     sweepAngle = 360f * progress,
                     useCenter = false,
@@ -387,20 +423,42 @@ private fun DashboardRing(snap: Snapshot, isDark: Boolean) {
             }
         }
 
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(
-                text = timeText,
-                fontSize = if (snap.plannedMs == 0L) 28.sp else 60.sp,
-                fontWeight = FontWeight.Thin,
-                color = textColor,
-                letterSpacing = 2.sp
-            )
-            if (snap.plannedMs > 0L) {
-                Spacer(Modifier.height(4.dp))
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+            modifier = Modifier.fillMaxSize()
+        ) {
+            if (snap.plannedMs == 0L) {
+                Text(
+                    text = timeText,
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Thin,
+                    letterSpacing = 8.sp,
+                    textAlign = TextAlign.Center,
+                    style = TextStyle(
+                        platformStyle = PlatformTextStyle(includeFontPadding = false)
+                    ),
+                    color = textColor
+                )
+            } else {
+                Text(
+                    text = timeText,
+                    fontSize = 62.sp,
+                    fontWeight = FontWeight.Thin,
+                    letterSpacing = 1.sp,
+                    textAlign = TextAlign.Center,
+                    style = TextStyle(
+                        platformStyle = PlatformTextStyle(includeFontPadding = false)
+                    ),
+                    color = textColor
+                )
+                Spacer(Modifier.height(8.dp))
                 Text(
                     text = "${(progress * 100).toInt()}%",
-                    fontSize = 13.sp,
-                    letterSpacing = 2.sp,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Light,
+                    letterSpacing = 4.sp,
+                    textAlign = TextAlign.Center,
                     color = subColor
                 )
             }
@@ -421,48 +479,69 @@ private fun ControlButtons(
         Button(
             onClick = onStart,
             shape = RoundedCornerShape(999.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-            contentPadding = PaddingValues(horizontal = 48.dp, vertical = 14.dp)
+            colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
+            contentPadding = PaddingValues(),
+            elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp)
         ) {
-            Text(
-                stringResource(R.string.home_start_focus),
-                fontSize = 16.sp,
-                fontWeight = FontWeight.SemiBold
-            )
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(999.dp))
+                    .background(Brush.horizontalGradient(listOf(OrangeStart, OrangeEnd)))
+                    .padding(horizontal = 56.dp, vertical = 16.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    stringResource(R.string.home_start_focus),
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Normal,
+                    letterSpacing = 4.sp,
+                    color = Color.White
+                )
+            }
         }
     } else {
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             if (snap.isPaused) {
-                Button(
-                    onClick = onResume,
-                    shape = RoundedCornerShape(999.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-                ) {
-                    Text(stringResource(R.string.home_resume))
-                }
+                PrimaryPill(stringResource(R.string.home_resume), onResume)
             } else {
-                OutlinedButton(
-                    onClick = onPause,
-                    shape = RoundedCornerShape(999.dp),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary)
-                ) {
-                    Text(stringResource(R.string.home_pause), color = MaterialTheme.colorScheme.primary)
-                }
+                GhostPill(stringResource(R.string.home_pause), onPause)
             }
-            OutlinedButton(
-                onClick = onSkip,
-                shape = RoundedCornerShape(999.dp),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
-            ) {
-                Text(stringResource(R.string.home_skip))
-            }
-            Button(
-                onClick = onFinish,
-                shape = RoundedCornerShape(999.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-            ) {
-                Text(stringResource(R.string.home_finish))
-            }
+            GhostPill(stringResource(R.string.home_skip), onSkip)
+            PrimaryPill(stringResource(R.string.home_finish), onFinish)
         }
+    }
+}
+
+@Composable
+private fun PrimaryPill(label: String, onClick: () -> Unit) {
+    Button(
+        onClick = onClick,
+        shape = RoundedCornerShape(999.dp),
+        colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
+        contentPadding = PaddingValues(),
+        elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .clip(RoundedCornerShape(999.dp))
+                .background(Brush.horizontalGradient(listOf(OrangeStart, OrangeEnd)))
+                .padding(horizontal = 28.dp, vertical = 12.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(label, fontSize = 13.sp, letterSpacing = 2.sp, color = Color.White)
+        }
+    }
+}
+
+@Composable
+private fun GhostPill(label: String, onClick: () -> Unit) {
+    OutlinedButton(
+        onClick = onClick,
+        shape = RoundedCornerShape(999.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.15f)),
+        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
+        contentPadding = PaddingValues(horizontal = 24.dp, vertical = 12.dp)
+    ) {
+        Text(label, fontSize = 13.sp, letterSpacing = 2.sp, fontWeight = FontWeight.Light)
     }
 }

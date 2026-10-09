@@ -1,5 +1,6 @@
 package com.gui.tomato.ui.screens
 
+import android.app.Activity
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -12,12 +13,14 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.gui.tomato.GuiApp
 import com.gui.tomato.R
@@ -26,6 +29,8 @@ private val DarkBg = Color(0xFF0D0D0D)
 private val DarkCard = Color(0xFF1A1A1A)
 private val DarkTextSub = Color(0xFF8A8A8A)
 private val DarkTextMain = Color(0xFFFFFFFF)
+private val OrangeStart = Color(0xFFE4572E)
+private val OrangeEnd = Color(0xFFFFA35C)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -57,9 +62,13 @@ fun SettingsScreen(nav: NavController) {
             TopAppBar(
                 title = {
                     Text(
-                        stringResource(R.string.settings_title),
-                        color = textMain,
-                        fontWeight = FontWeight.SemiBold
+                        text = "晷",
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.Thin,
+                        letterSpacing = 2.sp,
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            brush = Brush.linearGradient(listOf(OrangeStart, OrangeEnd))
+                        )
                     )
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
@@ -80,7 +89,6 @@ fun SettingsScreen(nav: NavController) {
                 .padding(pad)
                 .fillMaxSize()
         ) {
-            // 番茄方案管理
             SettingsCard(cardColor, onClick = { nav.navigate("presetEdit") }) {
                 Row(
                     Modifier.fillMaxWidth(),
@@ -100,7 +108,6 @@ fun SettingsScreen(nav: NavController) {
                 }
             }
 
-            // 主题
             SettingsCard(cardColor) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
@@ -127,7 +134,6 @@ fun SettingsScreen(nav: NavController) {
                 }
             }
 
-            // 语言
             SettingsCard(cardColor) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
@@ -141,7 +147,12 @@ fun SettingsScreen(nav: NavController) {
                     ).forEachIndexed { i, l ->
                         FilterChip(
                             selected = langIdx == i,
-                            onClick = { prefs.lang = i },
+                            onClick = {
+                                if (prefs.lang != i) {
+                                    prefs.lang = i
+                                    (ctx as? Activity)?.recreate()
+                                }
+                            },
                             label = { Text(l) },
                             colors = FilterChipDefaults.filterChipColors(
                                 selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.18f),
@@ -154,7 +165,6 @@ fun SettingsScreen(nav: NavController) {
                 }
             }
 
-            // 通知
             SettingsCard(cardColor) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
@@ -173,7 +183,6 @@ fun SettingsScreen(nav: NavController) {
                 }
             }
 
-            // 震动
             SettingsCard(cardColor) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
@@ -192,7 +201,6 @@ fun SettingsScreen(nav: NavController) {
                 }
             }
 
-            // 导出
             SettingsCard(cardColor, onClick = { app.backupToPublic() }) {
                 Text(
                     stringResource(R.string.settings_export_backup),
@@ -201,7 +209,6 @@ fun SettingsScreen(nav: NavController) {
                 )
             }
 
-            // 导入
             SettingsCard(cardColor, onClick = {
                 import.launch(arrayOf("application/zip", "application/octet-stream"))
             }) {
