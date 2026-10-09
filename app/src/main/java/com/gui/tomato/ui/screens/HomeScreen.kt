@@ -50,6 +50,7 @@ import com.gui.tomato.data.entities.Task
 import com.gui.tomato.engine.Snapshot
 import com.gui.tomato.engine.State
 import com.gui.tomato.ui.components.StaggerIn
+import com.gui.tomato.util.Haptic
 
 private val DarkBg = Color(0xFF0D0D0D)
 private val DarkCard = Color(0xFF1A1A1A)
@@ -90,6 +91,9 @@ fun HomeScreen(nav: NavController) {
             selfCheckAnim.snapTo(0f)
             kotlinx.coroutines.delay(380)
 
+            // ── 启动：短震
+            if (app.prefs.vibrate) Haptic.tap(ctx)
+
             // 冲劲：560ms 从 0 拉到 110%
             selfCheckAnim.animateTo(
                 targetValue = 1.10f,
@@ -100,6 +104,10 @@ fun HomeScreen(nav: NavController) {
                     1.10f at 560
                 }
             )
+
+            // ── 撞顶：双击（最有"撞击感"的一下）
+            if (app.prefs.vibrate) Haptic.doubleTap(ctx)
+
             // 撞击回弹（快速）
             selfCheckAnim.animateTo(
                 targetValue = 1f,
@@ -114,6 +122,9 @@ fun HomeScreen(nav: NavController) {
                 targetValue = 0f,
                 animationSpec = tween(420, easing = FastOutSlowInEasing)
             )
+
+            // ── 回位：短震
+            if (app.prefs.vibrate) Haptic.tap(ctx)
 
             kotlinx.coroutines.delay(80)
             selfCheckActive = false
@@ -452,10 +463,8 @@ private fun DashboardRing(
     val rawProgress = selfCheckRing ?: realProgress
     val mainProgress = rawProgress.coerceIn(0f, 1f)
 
-    // 超出程度：0（未超出）→ 1（超出 10%）
     val deepness = ((rawProgress - 1f) / 0.10f).coerceIn(0f, 1f)
 
-    // 主弧颜色：正常橙 → 深橙（超出时）
     val arcA = lerp(OrangeStart, DeepOrangeStart, deepness)
     val arcB = lerp(OrangeEnd, DeepOrangeEnd, deepness)
     val arcColors = listOf(arcA, arcB, arcA)
@@ -505,7 +514,6 @@ private fun DashboardRing(
                 )
             }
 
-            // 轨道
             drawArc(
                 color = trackColor,
                 startAngle = -90f,
@@ -516,7 +524,6 @@ private fun DashboardRing(
                 style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
             )
 
-            // 主弧：正常画满 100%，超出时颜色会自然变深（同一支弧）
             if (mainProgress > 0f) {
                 drawArc(
                     brush = Brush.sweepGradient(colors = arcColors),

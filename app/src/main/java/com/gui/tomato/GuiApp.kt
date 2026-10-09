@@ -25,7 +25,7 @@ class GuiApp : Application() {
         super.onCreate()
         prefs = AppPrefs(this)
         db = AppDatabase.get(this)
-        repo = PomodoroRepository(db)
+        repo = PomodoroRepository(this, db)
         repo.recoverOnStartup()
     }
 

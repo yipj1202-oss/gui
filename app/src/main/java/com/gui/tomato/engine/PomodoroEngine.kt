@@ -4,6 +4,16 @@ import com.gui.tomato.data.entities.PomodoroPreset
 
 enum class State { IDLE, FOCUS, SHORT_BREAK, LONG_BREAK }
 
+/** 引擎事件，用于让外层做振动/声音/通知等副作用 */
+enum class EngineEvent {
+    Started,         // 从 IDLE 开始专注
+    Paused,
+    Resumed,
+    Skipped,         // 用户点了跳过
+    Finished,        // 用户点了结束
+    PhaseCompleted,  // 一段计时自然走完，自动切到下一段
+}
+
 data class Snapshot(
     val state: State,
     val remainMs: Long,
@@ -19,7 +29,8 @@ data class Snapshot(
 
 class PomodoroEngine(
     private val onSessionInsert: (presetId: Long, taskId: Long?, startedAt: Long, type: String, plannedMin: Int) -> Unit = { _, _, _, _, _ -> },
-    private val onSessionClose: (startedAt: Long, endedAt: Long, completedMin: Int, finishedByTime: Boolean) -> Unit = { _, _, _, _ -> }
+    private val onSessionClose: (startedAt: Long, endedAt: Long, completedMin: Int, finishedByTime: Boolean) -> Unit = { _, _, _, _ -> },
+    private val onEvent: (EngineEvent) -> Unit = {},
 ) {
     var preset: PomodoroPreset = PomodoroPreset(name = "default", focusMin = 25, shortBreakMin = 5, longBreakEvery = 4, longBreakMin = 15)
         private set
@@ -48,12 +59,14 @@ class PomodoroEngine(
         totalFocusCount = 0
         running = true
         startSegment(State.FOCUS, "focus", preset.focusMin, nowMs)
+        onEvent(EngineEvent.Started)
     }
 
     fun pause(nowMs: Long) {
         if (!running || isPaused) return
         isPaused = true
         pausedAtMs = nowMs
+        onEvent(EngineEvent.Paused)
     }
 
     fun resume(nowMs: Long) {
@@ -61,11 +74,13 @@ class PomodoroEngine(
         totalPausedMs += (nowMs - pausedAtMs)
         isPaused = false
         pausedAtMs = 0L
+        onEvent(EngineEvent.Resumed)
     }
 
     fun skipSegment(nowMs: Long) {
         if (!running) return
         closeCurrent(nowMs, finishedByTime = false)
+        onEvent(EngineEvent.Skipped)
         next(nowMs)
     }
 
@@ -78,6 +93,7 @@ class PomodoroEngine(
         isPaused = false
         pausedAtMs = 0L
         totalPausedMs = 0L
+        onEvent(EngineEvent.Finished)
     }
 
     private fun startSegment(st: State, type: String, plannedMin: Int, nowMs: Long) {
@@ -124,6 +140,7 @@ class PomodoroEngine(
 
         if (!isPaused && remain == 0L && elapsed >= segPlannedMs) {
             closeCurrent(nowMs, finishedByTime = true)
+            onEvent(EngineEvent.PhaseCompleted)
             val advanceAt = segStartMs + segPlannedMs + totalPausedMs
             next(advanceAt)
             val elapsed2 = (nowMs - segStartMs)
