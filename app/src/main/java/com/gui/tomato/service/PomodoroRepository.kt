@@ -22,8 +22,16 @@ class PomodoroRepository(private val db: AppDatabase) {
         onSessionInsert = { presetId, taskId, startedAt, type, plannedMin ->
             io.launch {
                 db.sessionDao().insert(
-                    PomodoroSession(presetId = presetId, taskId = taskId, startedAt = startedAt,
-                        endedAt = null, type = type, plannedMin = plannedMin, completedMin = 0, finishedByTime = false)
+                    PomodoroSession(
+                        presetId = presetId,
+                        taskId = taskId,
+                        startedAt = startedAt,
+                        endedAt = null,
+                        type = type,
+                        plannedMin = plannedMin,
+                        completedMin = 0,
+                        finishedByTime = false
+                    )
                 )
             }
         },
@@ -36,19 +44,26 @@ class PomodoroRepository(private val db: AppDatabase) {
     )
 
     fun current(): Snapshot = engine.currentSnapshot(System.currentTimeMillis()).also {
-        if (it != mutable.value) mutable.value = it
+        mutable.value = it
+    }
+
+    fun applyPreset(p: PomodoroPreset) {
+        engine.applyPreset(p)
+        mutable.value = engine.currentSnapshot(System.currentTimeMillis())
     }
 
     fun start(taskId: Long?) {
-        val p = runBlocking { db.presetDao().getDefault() ?: defaultPreset() }
-        engine.applyPreset(p)
         engine.start(taskId, System.currentTimeMillis())
         current()
     }
-    fun skip() { engine.skipSegment(System.currentTimeMillis()); current() }
+
+    fun skip() {
+        engine.skipSegment(System.currentTimeMillis())
+        current()
+    }
+
     fun finish() {
         engine.finishAll(System.currentTimeMillis())
-        // close the currently-open session so it isn't left dangling
         io.launch {
             val open = db.sessionDao().getOpen()
             if (open != null) db.sessionDao().close(open.id, System.currentTimeMillis(), open.completedMin, true)
@@ -56,10 +71,6 @@ class PomodoroRepository(private val db: AppDatabase) {
         current()
     }
 
-    /**
-     * On cold start, if a focus session was left open (app killed mid-timer),
-     * close it as finished-by-time and re-apply the last preset.
-     */
     fun recoverOnStartup() {
         runBlocking {
             val open = db.sessionDao().getOpen()

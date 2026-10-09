@@ -153,7 +153,7 @@ fun HomeScreen(nav: NavController) {
                             supportingContent = { Text("专注 ${p.focusMin}分 · 短休 ${p.shortBreakMin}分 · 长休 ${p.longBreakMin}分 (每${p.longBreakEvery}个)") },
                             trailingContent = { if (isCurrent) Text("使用中", color = MaterialTheme.colorScheme.primary) },
                             modifier = Modifier.clickable {
-                                app.repo.engine.applyPreset(p)
+                                app.repo.applyPreset(p)
                                 snap = app.repo.current()
                                 showPresetSheet = false
                             }

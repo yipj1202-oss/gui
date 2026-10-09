@@ -1,6 +1,5 @@
 package com.gui.tomato.ui.screens
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -69,10 +68,13 @@ fun TasksScreen(nav: NavController) {
                     TaskRow(
                         t = t,
                         onClick = { nav.navigate("taskDetail/" + t.id) },
-                        onComplete = {
+                        onToggleComplete = { isChecked ->
                             kotlinx.coroutines.runBlocking {
                                 app.db.taskDao().update(
-                                    t.copy(completed = true, completedAt = System.currentTimeMillis())
+                                    t.copy(
+                                        completed = isChecked,
+                                        completedAt = if (isChecked) System.currentTimeMillis() else null
+                                    )
                                 )
                             }
                         }
@@ -89,20 +91,20 @@ fun TasksScreen(nav: NavController) {
                     }
                 }
                 items(doneList) { t ->
-                    Row(
-                        Modifier
-                            .fillMaxWidth()
-                            .clickable { nav.navigate("taskDetail/" + t.id) }
-                            .padding(horizontal = 16.dp, vertical = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            t.title,
-                            Modifier.weight(1f),
-                            color = MaterialTheme.colorScheme.onBackground
-                        )
-                        Checkbox(checked = t.completed, onCheckedChange = { })
-                    }
+                    TaskRow(
+                        t = t,
+                        onClick = { nav.navigate("taskDetail/" + t.id) },
+                        onToggleComplete = { isChecked ->
+                            kotlinx.coroutines.runBlocking {
+                                app.db.taskDao().update(
+                                    t.copy(
+                                        completed = isChecked,
+                                        completedAt = if (isChecked) System.currentTimeMillis() else null
+                                    )
+                                )
+                            }
+                        }
+                    )
                 }
             }
         }
@@ -110,17 +112,35 @@ fun TasksScreen(nav: NavController) {
 }
 
 @Composable
-fun TaskRow(t: Task, onClick: () -> Unit, onComplete: () -> Unit) {
+fun TaskRow(
+    t: Task,
+    onClick: () -> Unit,
+    onToggleComplete: (Boolean) -> Unit
+) {
     Card(
         onClick = onClick,
-        modifier = Modifier.fillMaxWidth().padding(4.dp)
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 8.dp, vertical = 4.dp)
     ) {
-        Row(Modifier.padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            modifier = Modifier.padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             Column(Modifier.weight(1f)) {
                 Text(t.title, style = MaterialTheme.typography.titleMedium)
-                if (t.note.isNotEmpty()) Text(t.note, style = MaterialTheme.typography.bodySmall)
+                if (t.note.isNotEmpty()) {
+                    Text(
+                        t.note,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.outline
+                    )
+                }
             }
-            Checkbox(checked = t.completed, onCheckedChange = { if (!t.completed) onComplete() })
+            Checkbox(
+                checked = t.completed,
+                onCheckedChange = { isChecked -> onToggleComplete(isChecked) }
+            )
         }
     }
 }
