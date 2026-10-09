@@ -15,7 +15,7 @@ import kotlinx.coroutines.runBlocking
 
 class PomodoroRepository(private val db: AppDatabase) {
     private val io = CoroutineScope(Dispatchers.IO)
-    private val mutable = MutableStateFlow(Snapshot(State.IDLE, 0L, null, 1L, 0, 0L, 0L, 0, "idle"))
+    private val mutable = MutableStateFlow(Snapshot(State.IDLE, 0L, null, 1L, 0, 0L, 0L, 0, "idle", false))
     val ui: StateFlow<Snapshot> = mutable
 
     val engine = PomodoroEngine(
@@ -54,6 +54,16 @@ class PomodoroRepository(private val db: AppDatabase) {
 
     fun start(taskId: Long?) {
         engine.start(taskId, System.currentTimeMillis())
+        current()
+    }
+
+    fun pause() {
+        engine.pause(System.currentTimeMillis())
+        current()
+    }
+
+    fun resume() {
+        engine.resume(System.currentTimeMillis())
         current()
     }
 

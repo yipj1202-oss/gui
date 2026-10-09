@@ -111,11 +111,23 @@ fun HomeScreen(nav: NavController) {
                 State.IDLE -> Button(onClick = { showTaskSheet = true }) {
                     Text("开始专注")
                 }
-                State.FOCUS -> Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(onClick = { app.repo.skip() }) { Text("跳过") }
-                    Button(onClick = { app.repo.finish(); app.serviceStop() }) { Text("结束") }
+                else -> Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (snap.isPaused) {
+                        Button(onClick = { app.repo.resume(); snap = app.repo.current() }) {
+                            Text("继续")
+                        }
+                    } else {
+                        OutlinedButton(onClick = { app.repo.pause(); snap = app.repo.current() }) {
+                            Text("暂停")
+                        }
+                    }
+                    OutlinedButton(onClick = { app.repo.skip(); snap = app.repo.current() }) {
+                        Text("跳过")
+                    }
+                    Button(onClick = { app.repo.finish(); app.serviceStop(); snap = app.repo.current() }) {
+                        Text("结束")
+                    }
                 }
-                else -> OutlinedButton(onClick = { app.repo.skip() }) { Text("跳过休息") }
             }
             Spacer(Modifier.height(24.dp))
             Text(
