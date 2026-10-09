@@ -10,16 +10,20 @@ import com.gui.tomato.data.backup.BackupStore
 import com.gui.tomato.data.db.AppDatabase
 import com.gui.tomato.service.PomodoroRepository
 import com.gui.tomato.service.TimerForegroundService
+import com.gui.tomato.ui.prefs.AppPrefs
 import kotlinx.coroutines.runBlocking
 
 class GuiApp : Application() {
     lateinit var db: AppDatabase
     lateinit var repo: PomodoroRepository
         private set
+    lateinit var prefs: AppPrefs
+        private set
     private var backupStore: BackupStore? = null
 
     override fun onCreate() {
         super.onCreate()
+        prefs = AppPrefs(this)
         db = AppDatabase.get(this)
         repo = PomodoroRepository(db)
         repo.recoverOnStartup()
@@ -50,13 +54,11 @@ class GuiApp : Application() {
     fun todayFocusMinutesSafe(): Int =
         runBlocking { db.sessionDao().focusInRange(dayStartMs(), Long.MAX_VALUE).sumOf { it.completedMin } }
 
-    // Stats safe wrappers used by UI (coroutine-free)
     fun byTaskSafe(from: Long, to: Long): List<TaskStatRow> =
         runBlocking { StatsRepo(db.sessionDao(), db.taskDao()).byTask(from, to) }
     fun byHourSafe(from: Long, to: Long): List<com.gui.tomato.data.HourStatRow> =
         runBlocking { StatsRepo(db.sessionDao(), db.taskDao()).byHour(from, to) }
 
-    // Backup helpers
     fun backupToPublic() {
         val bs = backupStore ?: BackupStore(this, db).also { backupStore = it }
         val dir = android.os.Environment.getExternalStorageDirectory()

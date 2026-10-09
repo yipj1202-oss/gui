@@ -18,6 +18,10 @@ val DarkColors = darkColorScheme(
 
 @Composable
 fun GuiTheme(themeIndex: Int, content: @Composable () -> Unit) {
-    val isDark = if (themeIndex == 1) true else isSystemInDarkTheme()
+    val isDark = when (themeIndex) {
+        1 -> true
+        2 -> isSystemInDarkTheme()
+        else -> false
+    }
     MaterialTheme(colorScheme = if (isDark) DarkColors else LightColors, content = content)
 }

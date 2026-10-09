@@ -18,7 +18,8 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            val prefs = remember { AppPrefs(applicationContext) }
+            val app = applicationContext as GuiApp
+            val prefs = app.prefs
             var showSplash by remember { mutableStateOf(true) }
             LaunchedEffect(Unit) {
                 kotlinx.coroutines.delay(400)

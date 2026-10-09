@@ -14,16 +14,15 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.gui.tomato.GuiApp
-import com.gui.tomato.ui.prefs.AppPrefs
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(nav: NavController) {
     val ctx = LocalContext.current
     val app = ctx.applicationContext as GuiApp
-    val prefs = remember { AppPrefs(ctx) }
-    var themeIdx by remember { mutableIntStateOf(prefs.theme) }
-    var langIdx by remember { mutableIntStateOf(prefs.lang) }
+    val prefs = app.prefs
+    val themeIdx = prefs.theme
+    val langIdx = prefs.lang
     var notify by remember { mutableStateOf(prefs.notifyEnabled) }
     var vibrate by remember { mutableStateOf(prefs.vibrate) }
 
@@ -79,7 +78,7 @@ fun SettingsScreen(nav: NavController) {
                     listOf("浅色", "深色").forEachIndexed { i, l ->
                         FilterChip(
                             selected = themeIdx == i,
-                            onClick = { themeIdx = i; prefs.theme = i },
+                            onClick = { prefs.theme = i },
                             label = { Text(l) }
                         )
                         if (i == 0) Spacer(Modifier.width(8.dp))
@@ -99,7 +98,7 @@ fun SettingsScreen(nav: NavController) {
                     listOf("中文", "English").forEachIndexed { i, l ->
                         FilterChip(
                             selected = langIdx == i,
-                            onClick = { langIdx = i; prefs.lang = i },
+                            onClick = { prefs.lang = i },
                             label = { Text(l) }
                         )
                         if (i == 0) Spacer(Modifier.width(8.dp))

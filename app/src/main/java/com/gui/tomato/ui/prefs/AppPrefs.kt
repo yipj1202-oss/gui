@@ -2,16 +2,29 @@ package com.gui.tomato.ui.prefs
 
 import android.content.Context
 import android.content.SharedPreferences
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.setValue
 
 class AppPrefs(ctx: Context) {
     private val sp: SharedPreferences = ctx.getSharedPreferences("gui_prefs", Context.MODE_PRIVATE)
 
+    private var themeState by mutableIntStateOf(sp.getInt("theme", 0))
     var theme: Int
-        get() = sp.getInt("theme", 0) // 0=light, 1=dark
-        set(v) = sp.edit().putInt("theme", v).apply()
+        get() = themeState
+        set(v) {
+            themeState = v
+            sp.edit().putInt("theme", v).apply()
+        }
+
+    private var langState by mutableIntStateOf(sp.getInt("lang", 0))
     var lang: Int
-        get() = sp.getInt("lang", 0) // 0=zh, 1=en
-        set(v) = sp.edit().putInt("lang", v).apply()
+        get() = langState
+        set(v) {
+            langState = v
+            sp.edit().putInt("lang", v).apply()
+        }
+
     var defaultPresetId: Long
         get() = sp.getLong("defPreset", -1L)
         set(v) = sp.edit().putLong("defPreset", v).apply()
