@@ -39,6 +39,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
@@ -48,13 +49,26 @@ import com.gui.tomato.R
 import com.gui.tomato.data.entities.TaskImage
 import com.gui.tomato.data.image.ImageStore
 import com.gui.tomato.ui.components.GuiButton
+import com.gui.tomato.ui.components.HoldToConfirmButton
+import com.gui.tomato.ui.components.StaggerIn
 
 @Composable
 fun TaskDetailScreen(nav: NavController, taskId: Long) {
     val ctx = LocalContext.current
     val app = ctx.applicationContext as GuiApp
     var imgs by remember { mutableStateOf<List<TaskImage>>(emptyList()) }
-    LaunchedEffect(taskId) { app.db.taskDao().imagesForFlow(taskId).collect { imgs = it } }
+    var taskTitle by remember { mutableStateOf("") }
+
+    LaunchedEffect(taskId) {
+        app.db.taskDao().imagesForFlow(taskId).collect { imgs = it }
+    }
+    LaunchedEffect(taskId) {
+        val t = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            app.db.taskDao().getById(taskId)
+        }
+        taskTitle = t?.title ?: ""
+    }
+
     val imgStore = remember { ImageStore(ctx) }
 
     val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
@@ -62,6 +76,7 @@ fun TaskDetailScreen(nav: NavController, taskId: Long) {
     val cardColor = if (isDark) Color(0xFF1A1A1A) else MaterialTheme.colorScheme.surface
     val textPrimary = if (isDark) Color(0xFFEDEDED) else MaterialTheme.colorScheme.onBackground
     val textMuted = if (isDark) Color(0xFF8A8A8A) else MaterialTheme.colorScheme.outline
+    val orangeStart = Color(0xFFE4572E)
 
     Box(
         modifier = Modifier
@@ -75,86 +90,122 @@ fun TaskDetailScreen(nav: NavController, taskId: Long) {
         ) {
             Spacer(Modifier.height(16.dp))
 
-            // ── 顶栏：返回 / 删除 ──
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                CircleIconButton(
-                    icon = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "返回",
-                    tint = textPrimary,
-                    bg = cardColor,
-                ) { nav.popBackStack() }
-
-                Spacer(Modifier.weight(1f))
-
-                CircleIconButton(
-                    icon = Icons.Filled.Delete,
-                    contentDescription = stringResource(R.string.task_delete_desc),
-                    tint = textMuted,
-                    bg = cardColor,
+            // ── 顶栏：返回 / 删除（长按确认） ──
+            StaggerIn(index = 0, startOffsetY = 14.dp) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    kotlinx.coroutines.runBlocking { app.db.taskDao().delete(taskId) }
-                    imgStore.deleteForTask(taskId)
-                    nav.popBackStack()
+                    CircleIconButton(
+                        icon = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "返回",
+                        tint = textPrimary,
+                        bg = cardColor,
+                    ) { nav.popBackStack() }
+
+                    Spacer(Modifier.weight(1f))
+
+                    HoldToConfirmButton(
+                        label = stringResource(R.string.task_delete_desc),
+                        icon = Icons.Filled.Delete,
+                        hapticsEnabled = app.prefs.vibrate,
+                        onConfirm = {
+                            kotlinx.coroutines.runBlocking { app.db.taskDao().delete(taskId) }
+                            imgStore.deleteForTask(taskId)
+                            nav.popBackStack()
+                        },
+                        bg = cardColor,
+                        contentColor = orangeStart,
+                        ringColor = orangeStart,
+                    )
                 }
             }
 
-            Spacer(Modifier.height(44.dp))
+            Spacer(Modifier.height(32.dp))
+
+            // ── 大标题：任务名 ──
+            StaggerIn(index = 1, startOffsetY = 14.dp, modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    text = taskTitle.ifEmpty { "—" },
+                    fontSize = 34.sp,
+                    fontWeight = FontWeight.Thin,
+                    letterSpacing = 3.sp,
+                    color = textPrimary,
+                    maxLines = 3,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            Spacer(Modifier.height(8.dp))
+            StaggerIn(index = 2, startOffsetY = 10.dp) {
+                Text(
+                    text = "TASK DETAIL",
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Light,
+                    letterSpacing = 5.sp,
+                    color = orangeStart,
+                )
+            }
+
+            Spacer(Modifier.height(36.dp))
 
             // ── 图片区 ──
             if (imgs.isNotEmpty()) {
-                LazyRow(
-                    contentPadding = PaddingValues(vertical = 4.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    items(imgs) { img ->
-                        AsyncImage(
-                            model = imgStore.file(img.filePath),
-                            contentDescription = null,
-                            modifier = Modifier
-                                .size(132.dp)
-                                .clip(RoundedCornerShape(16.dp))
-                                .clickable { nav.navigate("taskEdit/$taskId") },
-                            contentScale = ContentScale.Crop
-                        )
+                StaggerIn(index = 3, startOffsetX = 32.dp, modifier = Modifier.fillMaxWidth()) {
+                    LazyRow(
+                        contentPadding = PaddingValues(vertical = 4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        items(imgs) { img ->
+                            AsyncImage(
+                                model = imgStore.file(img.filePath),
+                                contentDescription = null,
+                                modifier = Modifier
+                                    .size(132.dp)
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .clickable { nav.navigate("taskEdit/$taskId") },
+                                contentScale = ContentScale.Crop
+                            )
+                        }
                     }
                 }
 
                 Spacer(Modifier.height(18.dp))
 
-                Text(
-                    text = stringResource(R.string.task_image_count, imgs.size),
-                    color = textMuted,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Light,
-                    letterSpacing = 3.sp,
-                )
+                StaggerIn(index = 4, startOffsetX = 24.dp) {
+                    Text(
+                        text = stringResource(R.string.task_image_count, imgs.size),
+                        color = textMuted,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Light,
+                        letterSpacing = 3.sp,
+                    )
+                }
             }
 
             Spacer(Modifier.weight(1f))
 
             // ── 底部主按钮 ──
-            GuiButton(
-                onClick = {
-                    app.repo.start(taskId)
-                    app.serviceStart()
-                    nav.navigate("tasks") {
-                        popUpTo("home")
-                        launchSingleTop = true
-                    }
-                },
-                modifier = Modifier.fillMaxWidth(),
-                contentPadding = PaddingValues(horizontal = 32.dp, vertical = 18.dp),
-            ) {
-                Text(
-                    text = stringResource(R.string.task_start_pomodoro),
-                    color = Color.White,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Light,
-                    letterSpacing = 4.sp,
-                )
+            StaggerIn(index = 5, startOffsetY = 20.dp, modifier = Modifier.fillMaxWidth()) {
+                GuiButton(
+                    onClick = {
+                        app.repo.start(taskId)
+                        app.serviceStart()
+                        nav.navigate("tasks") {
+                            popUpTo("home")
+                            launchSingleTop = true
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    contentPadding = PaddingValues(horizontal = 32.dp, vertical = 18.dp),
+                ) {
+                    Text(
+                        text = stringResource(R.string.task_start_pomodoro),
+                        color = Color.White,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Light,
+                        letterSpacing = 4.sp,
+                    )
+                }
             }
 
             Spacer(Modifier.height(28.dp))

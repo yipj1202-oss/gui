@@ -3,7 +3,12 @@ package com.gui.tomato.ui.nav
 import android.content.Context
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.keyframes
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -16,14 +21,15 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
@@ -36,8 +42,10 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -51,9 +59,12 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
@@ -61,10 +72,13 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
+import com.gui.tomato.GuiApp
 import com.gui.tomato.R
 import com.gui.tomato.ui.components.LocalNavDirection
 import com.gui.tomato.ui.components.NavDirection
 import com.gui.tomato.ui.screens.*
+import com.gui.tomato.util.Haptic
+import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
 
 private val DarkBg = Color(0xFF0D0D0D)
@@ -136,6 +150,8 @@ fun AppNavHost(
     val selectedColor = MaterialTheme.colorScheme.primary
     val unselectedColor = if (isDark) Color(0xFF8A8A8A) else MaterialTheme.colorScheme.outline
 
+    val hapticsEnabled = (context.applicationContext as GuiApp).prefs.vibrate
+
     val allItems = remember {
         listOf(
             NavItem("home", Icons.AutoMirrored.Filled.List),
@@ -150,8 +166,6 @@ fun AppNavHost(
     val orderedItems = order.mapNotNull { r -> allItems.firstOrNull { it.route == r } }
 
     val orderForTransition by rememberUpdatedState(order.toList())
-
-    // 导航方向信使：给页面内的 StaggerIn 用
     var navDirection by remember { mutableStateOf(NavDirection.None) }
 
     Scaffold(
@@ -165,9 +179,11 @@ fun AppNavHost(
                     barColor = barColor,
                     selectedColor = selectedColor,
                     unselectedColor = unselectedColor,
+                    hapticsEnabled = hapticsEnabled,
                     onNavigate = { route ->
                         if (currentRoute != route) {
-                            // 先算方向，再切页面，保证新页面第一次组合就能读到正确方向
+                            if (hapticsEnabled) Haptic.tap(context, 22)
+
                             val fromIdx = order.indexOf(currentRoute.orEmpty())
                             val toIdx = order.indexOf(route)
                             navDirection = when {
@@ -280,6 +296,7 @@ fun AppNavHost(
     }
 }
 
+// ---------- 底栏：泡泡胶囊 + 挤压/爆裂/融合 + 拖拽让位 + 振动 ----------
 @Composable
 private fun DraggableNavBar(
     items: List<NavItem>,
@@ -287,106 +304,267 @@ private fun DraggableNavBar(
     barColor: Color,
     selectedColor: Color,
     unselectedColor: Color,
+    hapticsEnabled: Boolean,
     onNavigate: (String) -> Unit,
     onReorder: (List<String>) -> Unit,
 ) {
+    val ctx = LocalContext.current
+    val density = LocalDensity.current
+
+    var barWidthPx by remember { mutableFloatStateOf(0f) }
+
     var draggingRoute by remember { mutableStateOf<String?>(null) }
     var dragOffsetX by remember { mutableFloatStateOf(0f) }
+    var dragFromIndex by remember { mutableIntStateOf(-1) }
+    var dragToIndex by remember { mutableIntStateOf(-1) }
+
+    val slotW = if (items.isEmpty() || barWidthPx == 0f) 0f else barWidthPx / items.size
     val latestItems by rememberUpdatedState(items)
 
-    Row(
+    // 选中 tab 的"视觉位置"（拖拽让位后）
+    val selectedOriginalIdx = items.indexOfFirst { it.route == currentRoute }
+    val selectedVisualIdx: Int = when {
+        selectedOriginalIdx < 0 -> 0
+        draggingRoute == null -> selectedOriginalIdx
+        else -> {
+            val from = dragFromIndex
+            val to = dragToIndex
+            when {
+                selectedOriginalIdx == from -> to
+                from < to && selectedOriginalIdx in (from + 1)..to -> selectedOriginalIdx - 1
+                from > to && selectedOriginalIdx in to until from -> selectedOriginalIdx + 1
+                else -> selectedOriginalIdx
+            }
+        }
+    }
+
+    // ── 泡泡基础几何 ──
+    val pillWidthBase = slotW * 0.62f
+    val pillTargetX = selectedVisualIdx * slotW + (slotW - pillWidthBase) / 2f
+    val pillHPx = with(density) { 32.dp.toPx() }
+    val pillTopPx = with(density) { 16.dp.toPx() }
+
+    // 位置：spring，微微超调
+    val pillX by animateFloatAsState(
+        targetValue = pillTargetX,
+        animationSpec = spring(
+            dampingRatio = 0.68f,
+            stiffness = Spring.StiffnessMediumLow,
+        ),
+        label = "pillX",
+    )
+
+    // 基础宽度：比位置更"迟钝"一点（让泡泡看起来被拉扯）
+    val pillWBase by animateFloatAsState(
+        targetValue = pillWidthBase,
+        animationSpec = spring(
+            dampingRatio = 0.55f,
+            stiffness = Spring.StiffnessLow,
+        ),
+        label = "pillWBase",
+    )
+
+    // ══ 挤压 / 爆裂 / 融合 ══
+    // squashX：横向挤压系数（横向挤宽 → 突然收缩 → 回弹）
+    // squashY：纵向挤压系数（跟横向反相，营造"被拉扁"的感觉）
+    val squashX = remember { Animatable(1f) }
+    val squashY = remember { Animatable(1f) }
+
+    LaunchedEffect(selectedVisualIdx, draggingRoute) {
+        if (draggingRoute != null) {
+            // 拖拽中：不播泡泡动画，保持 1
+            squashX.snapTo(1f)
+            squashY.snapTo(1f)
+            return@LaunchedEffect
+        }
+        // 点击切换（或拖拽松开）：走「挤 → 爆 → 融合」
+        squashX.snapTo(1f)
+        squashY.snapTo(1f)
+
+        // 横向：先被拉长（挤过去）→ 到位后爆开收缩 → 回弹
+        squashX.animateTo(
+            targetValue = 1f,
+            animationSpec = keyframes {
+                durationMillis = 560
+                1.00f at 0
+                1.22f at 150     // 挤过去，横向拉长
+                0.86f at 330     // 爆开，突然收缩
+                1.05f at 460     // 轻微超调
+                1.00f at 560
+            }
+        )
+    }
+    // 纵向跟横向反相：横向拉长时纵向压扁 → 泡泡的张力感
+    LaunchedEffect(squashX.value) {
+        val x = squashX.value
+        // 反相：x 越大，y 越小
+        val targetY = (2f - x).coerceIn(0.85f, 1.15f)
+        squashY.animateTo(
+            targetValue = targetY,
+            animationSpec = spring(
+                dampingRatio = 0.6f,
+                stiffness = Spring.StiffnessMediumLow,
+            )
+        )
+    }
+
+    val finalW = pillWBase * squashX.value
+    val finalH = pillHPx * squashY.value
+
+    Box(
         modifier = Modifier
             .fillMaxWidth()
             .background(barColor)
             .navigationBarsPadding()
-            .height(80.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .height(80.dp)
+            .onSizeChanged { barWidthPx = it.width.toFloat() }
     ) {
-        items.forEach { item ->
-            val selected = currentRoute == item.route
-            val isDragging = draggingRoute == item.route
+        if (slotW > 0f) {
+            // ══ 泡泡胶囊（底层，zIndex 0） ══
+            // X 位置要按宽度变化微调，让泡泡以"中心"为锚点
+            val centerX = pillX + pillWBase / 2f
+            val pillLeft = centerX - finalW / 2f
+            val pillTop = pillTopPx + (pillHPx - finalH) / 2f
 
             Box(
                 modifier = Modifier
-                    .weight(1f)
-                    .fillMaxHeight()
-                    .zIndex(if (isDragging) 1f else 0f)
-                    .graphicsLayer {
-                        if (isDragging) {
-                            translationX = dragOffsetX
-                            scaleX = 1.08f
-                            scaleY = 1.08f
+                    .offset { IntOffset(pillLeft.roundToInt(), pillTop.roundToInt()) }
+                    .width(with(density) { finalW.toDp() })
+                    .height(with(density) { finalH.toDp() })
+                    .clip(RoundedCornerShape(50))
+                    .background(selectedColor.copy(alpha = 0.16f))
+            )
+
+            // ══ tabs（zIndex 1+） ══
+            items.forEachIndexed { index, item ->
+                val selected = currentRoute == item.route
+                val isDragging = draggingRoute == item.route
+
+                val targetIdx = when {
+                    isDragging -> dragToIndex.coerceAtLeast(0)
+                    draggingRoute == null -> index
+                    else -> {
+                        val from = dragFromIndex
+                        val to = dragToIndex
+                        when {
+                            index == from -> to
+                            from < to && index in (from + 1)..to -> index - 1
+                            from > to && index in to until from -> index + 1
+                            else -> index
                         }
                     }
-                    .pointerInput(item.route) {
-                        detectDragGesturesAfterLongPress(
-                            onDragStart = {
-                                draggingRoute = item.route
-                                dragOffsetX = 0f
-                            },
-                            onDrag = { change, amount ->
-                                change.consume()
-                                val list = latestItems
-                                val from = list.indexOfFirst { it.route == item.route }
-                                if (from >= 0) {
+                }
+
+                val effectiveTarget = if (isDragging) {
+                    dragFromIndex * slotW + dragOffsetX
+                } else {
+                    targetIdx * slotW
+                }
+
+                val offsetX by animateFloatAsState(
+                    targetValue = effectiveTarget,
+                    animationSpec = if (isDragging) {
+                        tween(0)
+                    } else {
+                        spring(
+                            dampingRatio = 0.55f,
+                            stiffness = Spring.StiffnessMediumLow,
+                        )
+                    },
+                    label = "navOffset_${item.route}",
+                )
+
+                val liftScale by animateFloatAsState(
+                    targetValue = if (isDragging) 1.14f else 1f,
+                    animationSpec = spring(
+                        dampingRatio = 0.5f,
+                        stiffness = Spring.StiffnessMedium,
+                    ),
+                    label = "navLift_${item.route}",
+                )
+
+                Box(
+                    modifier = Modifier
+                        .width(with(density) { slotW.toDp() })
+                        .fillMaxHeight()
+                        .offset { IntOffset(offsetX.roundToInt(), 0) }
+                        .zIndex(if (isDragging) 3f else 1f)
+                        .graphicsLayer {
+                            scaleX = liftScale
+                            scaleY = liftScale
+                        }
+                        .pointerInput(item.route) {
+                            detectDragGesturesAfterLongPress(
+                                onDragStart = {
+                                    val from = latestItems.indexOfFirst { it.route == item.route }
+                                    draggingRoute = item.route
+                                    dragOffsetX = 0f
+                                    dragFromIndex = from
+                                    dragToIndex = from
+                                    if (hapticsEnabled) Haptic.tap(ctx, 40)
+                                },
+                                onDrag = { change, amount ->
+                                    change.consume()
                                     dragOffsetX += amount.x
-                                    val w = size.width.toFloat()
-                                    if (w > 0f) {
-                                        val shift = (dragOffsetX / w).roundToInt()
-                                        val to = (from + shift).coerceIn(0, list.lastIndex)
-                                        if (to != from) {
-                                            val newOrder = list.map { it.route }.toMutableList()
-                                            newOrder.add(to, newOrder.removeAt(from))
-                                            onReorder(newOrder)
-                                            dragOffsetX -= shift * w
+                                    if (slotW > 0f) {
+                                        val shift = (dragOffsetX / slotW).roundToInt()
+                                        val newTo = (dragFromIndex + shift)
+                                            .coerceIn(0, latestItems.lastIndex)
+                                        if (newTo != dragToIndex) {
+                                            dragToIndex = newTo
+                                            if (hapticsEnabled) Haptic.tap(ctx, 25)
                                         }
                                     }
+                                },
+                                onDragEnd = {
+                                    if (dragFromIndex >= 0 && dragToIndex >= 0 &&
+                                        dragFromIndex != dragToIndex
+                                    ) {
+                                        val newOrder = latestItems.map { it.route }.toMutableList()
+                                        newOrder.add(dragToIndex, newOrder.removeAt(dragFromIndex))
+                                        onReorder(newOrder)
+                                    }
+                                    if (hapticsEnabled) Haptic.tap(ctx, 30)
+                                    draggingRoute = null
+                                    dragOffsetX = 0f
+                                    dragFromIndex = -1
+                                    dragToIndex = -1
+                                },
+                                onDragCancel = {
+                                    draggingRoute = null
+                                    dragOffsetX = 0f
+                                    dragFromIndex = -1
+                                    dragToIndex = -1
                                 }
-                            },
-                            onDragEnd = {
-                                draggingRoute = null
-                                dragOffsetX = 0f
-                            },
-                            onDragCancel = {
-                                draggingRoute = null
-                                dragOffsetX = 0f
-                            }
-                        )
-                    }
-                    .clickable(
-                        interactionSource = remember(item.route) { MutableInteractionSource() },
-                        indication = null,
-                        onClick = { onNavigate(item.route) }
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(
-                                if (selected) selectedColor.copy(alpha = 0.15f)
-                                else Color.Transparent
                             )
-                            .padding(horizontal = 16.dp, vertical = 4.dp)
+                        }
+                        .clickable(
+                            interactionSource = remember(item.route) { MutableInteractionSource() },
+                            indication = null,
+                            onClick = { onNavigate(item.route) }
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
                     ) {
-                        Icon(
-                            imageVector = item.icon,
-                            contentDescription = labelForRoute(item.route),
-                            tint = if (selected) selectedColor else unselectedColor
+                        Box(modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
+                            Icon(
+                                imageVector = item.icon,
+                                contentDescription = labelForRoute(item.route),
+                                tint = if (isDragging || selected) selectedColor else unselectedColor
+                            )
+                        }
+                        Spacer(Modifier.height(2.dp))
+                        Text(
+                            text = labelForRoute(item.route),
+                            color = if (selected) selectedColor else unselectedColor,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium,
+                            letterSpacing = 1.sp
                         )
                     }
-                    Spacer(Modifier.height(2.dp))
-                    Text(
-                        text = labelForRoute(item.route),
-                        color = if (selected) selectedColor else unselectedColor,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Medium,
-                        letterSpacing = 1.sp
-                    )
                 }
             }
         }
