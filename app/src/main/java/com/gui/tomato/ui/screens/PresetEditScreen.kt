@@ -7,9 +7,11 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.gui.tomato.GuiApp
+import com.gui.tomato.R
 import com.gui.tomato.data.entities.PomodoroPreset
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -27,10 +29,10 @@ fun PresetEditScreen(nav: NavController) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("新建番茄方案") },
+                title = { Text(stringResource(R.string.preset_title_new)) },
                 navigationIcon = {
                     IconButton(onClick = { nav.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.action_back))
                     }
                 }
             )
@@ -45,23 +47,23 @@ fun PresetEditScreen(nav: NavController) {
             OutlinedTextField(
                 value = name,
                 onValueChange = { name = it },
-                label = { Text("方案名称") },
+                label = { Text(stringResource(R.string.preset_field_name)) },
                 modifier = Modifier.fillMaxWidth()
             )
             Spacer(Modifier.height(12.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                IntField("专注 (分钟)", focus, { focus = it }, Modifier.weight(1f))
-                IntField("短休 (分钟)", shortB, { shortB = it }, Modifier.weight(1f))
+                IntField(stringResource(R.string.preset_field_focus), focus, { focus = it }, Modifier.weight(1f))
+                IntField(stringResource(R.string.preset_field_short_break), shortB, { shortB = it }, Modifier.weight(1f))
             }
             Spacer(Modifier.height(12.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                IntField("长休间隔 (个)", everyN, { everyN = it }, Modifier.weight(1f))
-                IntField("长休 (分钟)", longB, { longB = it }, Modifier.weight(1f))
+                IntField(stringResource(R.string.preset_field_long_break_every), everyN, { everyN = it }, Modifier.weight(1f))
+                IntField(stringResource(R.string.preset_field_long_break_min), longB, { longB = it }, Modifier.weight(1f))
             }
             Spacer(Modifier.height(12.dp))
             Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
                 Checkbox(checked = isDefault, onCheckedChange = { isDefault = it })
-                Text("设为默认方案")
+                Text(stringResource(R.string.preset_checkbox_default))
             }
             Spacer(Modifier.height(24.dp))
             Button(
@@ -83,7 +85,7 @@ fun PresetEditScreen(nav: NavController) {
                 },
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text("保存方案")
+                Text(stringResource(R.string.preset_save))
             }
         }
     }
