@@ -74,4 +74,7 @@
     <string name="preset_field_long_break_min">Long Break (min)</string>
     <string name="preset_checkbox_default">Set as default preset</string>
     <string name="preset_save">Save Preset</string>
+    <string name="stats_hour_suffix">h</string>
+    <string name="stats_task_deleted">Deleted</string>
+    <string name="stats_task_unspecified">Unspecified</string>
 </resources>

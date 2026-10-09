@@ -140,6 +140,14 @@ private fun TaskBarRow(
     trackColor: Color,
     labelColor: Color
 ) {
+    val deletedStr = stringResource(R.string.stats_task_deleted)
+    val unspecifiedStr = stringResource(R.string.stats_task_unspecified)
+    val taskNameDisplay = when (r.taskName) {
+        "已删除" -> deletedStr
+        "未指定" -> unspecifiedStr
+        else -> r.taskName
+    }
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -147,7 +155,7 @@ private fun TaskBarRow(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
-            r.taskName,
+            taskNameDisplay,
             style = MaterialTheme.typography.bodyMedium,
             color = labelColor,
             modifier = Modifier.width(90.dp),
@@ -196,6 +204,7 @@ private fun HourBarChart(
 ) {
     val textMeasurer = rememberTextMeasurer()
     val hourMap = remember(hours) { hours.associateBy { it.hour } }
+    val hourSuffix = stringResource(R.string.stats_hour_suffix)
 
     val rawMax = hours.maxOfOrNull { it.focusMin } ?: 1
     val displayMax = when {
@@ -296,7 +305,7 @@ private fun HourBarChart(
 
         listOf(0, 6, 12, 18, 23).forEach { hour ->
             val x = leftPad + hour * slotW + slotW / 2f
-            val layout = textMeasurer.measure("${hour}时", labelStyle)
+            val layout = textMeasurer.measure("$hour$hourSuffix", labelStyle)
             drawText(
                 textLayoutResult = layout,
                 color = labelColor,
