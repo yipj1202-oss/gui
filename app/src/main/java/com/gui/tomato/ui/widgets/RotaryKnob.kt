@@ -4,15 +4,28 @@ import android.media.AudioAttributes
 import android.media.AudioFormat
 import android.media.AudioTrack
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
@@ -21,6 +34,8 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.PlatformTextStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -94,6 +109,18 @@ fun RotaryKnob(
         onDispose { tickTrack?.release() }
     }
 
+    // ── 编辑状态 ──
+    var editing by remember { mutableStateOf(false) }
+    var editText by remember { mutableStateOf("") }
+    val focusRequester = remember { FocusRequester() }
+    var hadFocus by remember { mutableStateOf(false) }
+
+    // pointerInput 里要用最新的 editing 值（不重启协程）
+    val editingState = rememberUpdatedState(editing)
+    val valueState = rememberUpdatedState(value)
+    val minState = rememberUpdatedState(min)
+    val maxState = rememberUpdatedState(max)
+
     // 每个值一根刻度
     val tickCount = (max - min + 1).coerceAtLeast(2)
 
@@ -122,6 +149,9 @@ fun RotaryKnob(
         // 数字块统一下移量：小旋钮也向大旋钮看齐，让数字离刻度更远
         val textOffsetY = if (bigKnob) 10.dp else 14.dp
 
+        // 输入框固定宽度（容纳两位数就够）
+        val editBoxWidth = (numberSizeSp * 1.15f).dp
+
         fun fireFeedback() {
             Haptic.tap(context)
             tickTrack?.let { t ->
@@ -146,16 +176,43 @@ fun RotaryKnob(
             angle = angle.coerceIn(-135f, 135f)
 
             val t = (angle + 135f) / 270f
-            var newValue = min + (t * (max - min)).roundToInt()
+            var newValue = minState.value + (t * (maxState.value - minState.value)).roundToInt()
 
             if (step > 1) {
                 newValue = ((newValue.toFloat() / step).roundToInt() * step)
             }
-            newValue = newValue.coerceIn(min, max)
+            newValue = newValue.coerceIn(minState.value, maxState.value)
 
-            if (newValue != currentValue) {
+            if (newValue != valueState.value) {
                 fireFeedback()
                 onChange(newValue)
+            }
+        }
+
+        fun startEditing() {
+            if (editing) return
+            editText = value.toString()
+            hadFocus = false
+            editing = true
+        }
+
+        fun commit() {
+            val n = editText.toIntOrNull()
+            if (n != null) {
+                val clamped = n.coerceIn(min, max)
+                if (clamped != value) {
+                    fireFeedback()
+                    onChange(clamped)
+                }
+            }
+            editing = false
+            editText = ""
+            hadFocus = false
+        }
+
+        LaunchedEffect(editing) {
+            if (editing) {
+                focusRequester.requestFocus()
             }
         }
 
@@ -164,10 +221,14 @@ fun RotaryKnob(
                 .fillMaxSize()
                 .pointerInput(min, max, step, sizePx) {
                     detectDragGestures(
-                        onDragStart = { offset -> handleTouch(offset) },
+                        onDragStart = { offset ->
+                            if (!editingState.value) handleTouch(offset)
+                        },
                         onDrag = { change, _ ->
-                            handleTouch(change.position)
-                            change.consume()
+                            if (!editingState.value) {
+                                handleTouch(change.position)
+                                change.consume()
+                            }
                         }
                     )
                 },
@@ -247,17 +308,75 @@ fun RotaryKnob(
                 verticalArrangement = Arrangement.Center,
                 modifier = Modifier.offset(y = textOffsetY)
             ) {
-                Text(
-                    text = value.toString(),
-                    fontSize = numberSizeSp.sp,
-                    fontWeight = FontWeight.Thin,
-                    letterSpacing = 1.sp,
-                    textAlign = TextAlign.Center,
-                    color = textColor,
-                    style = TextStyle(
-                        platformStyle = PlatformTextStyle(includeFontPadding = false)
+                if (editing) {
+                    // 输入态：固定宽度的小框，容纳两位数
+                    Box(
+                        modifier = Modifier
+                            .width(editBoxWidth)
+                            .focusRequester(focusRequester)
+                            .onFocusChanged { st ->
+                                if (st.isFocused) {
+                                    hadFocus = true
+                                } else if (hadFocus) {
+                                    commit()
+                                }
+                            }
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(trackColor.copy(alpha = 0.5f))
+                            .border(
+                                1.dp,
+                                OrangeStart.copy(alpha = 0.85f),
+                                RoundedCornerShape(8.dp)
+                            )
+                            .padding(horizontal = 2.dp, vertical = 2.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        BasicTextField(
+                            value = editText,
+                            onValueChange = { s ->
+                                editText = s.filter { it.isDigit() }.take(3)
+                            },
+                            singleLine = true,
+                            textStyle = TextStyle(
+                                fontSize = numberSizeSp.sp,
+                                fontWeight = FontWeight.Thin,
+                                letterSpacing = 0.sp,
+                                textAlign = TextAlign.Center,
+                                color = textColor,
+                                platformStyle = PlatformTextStyle(includeFontPadding = false)
+                            ),
+                            cursorBrush = SolidColor(OrangeStart),
+                            keyboardOptions = KeyboardOptions(
+                                keyboardType = KeyboardType.Number,
+                                imeAction = ImeAction.Done
+                            ),
+                            keyboardActions = KeyboardActions(
+                                onDone = { commit() }
+                            ),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                } else {
+                    Text(
+                        text = value.toString(),
+                        fontSize = numberSizeSp.sp,
+                        fontWeight = FontWeight.Thin,
+                        letterSpacing = 1.sp,
+                        textAlign = TextAlign.Center,
+                        color = textColor,
+                        style = TextStyle(
+                            platformStyle = PlatformTextStyle(includeFontPadding = false)
+                        ),
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null
+                            ) { startEditing() }
+                            .padding(horizontal = 8.dp, vertical = 2.dp)
                     )
-                )
+                }
+
                 if (unit.isNotEmpty()) {
                     Spacer(Modifier.height(if (bigKnob) 4.dp else 1.dp))
                     Text(

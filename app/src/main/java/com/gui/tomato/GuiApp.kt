@@ -65,6 +65,14 @@ class GuiApp : Application() {
     fun byHourSafe(from: Long, to: Long): List<com.gui.tomato.data.HourStatRow> =
         runBlocking { StatsRepo(db.sessionDao(), db.taskDao()).byHour(from, to) }
 
+    /** 删除某任务的所有专注 session；taskId 传 null 表示清理"未指定" */
+    fun deleteTaskStats(taskId: Long?) {
+        runBlocking {
+            if (taskId == null) db.sessionDao().deleteStatsForNullTask()
+            else db.sessionDao().deleteStatsByTask(taskId)
+        }
+    }
+
     fun backupToPublic() {
         val bs = backupStore ?: BackupStore(this, db).also { backupStore = it }
         val dir = android.os.Environment.getExternalStorageDirectory()

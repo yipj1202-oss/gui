@@ -1,17 +1,24 @@
 package com.gui.tomato.ui.screens
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -31,14 +38,18 @@ import com.gui.tomato.R
 import com.gui.tomato.data.HourStatRow
 import com.gui.tomato.data.TaskStatRow
 import com.gui.tomato.ui.components.StaggerIn
+import com.gui.tomato.util.Haptic
 import kotlin.math.roundToInt
 
 private val DarkBg = Color(0xFF0D0D0D)
 private val DarkCard = Color(0xFF1A1A1A)
+private val DarkSheetRow = Color(0xFF141414)
 private val DarkTrack = Color(0xFF2A2A2A)
+private val DarkDivider = Color(0xFF262626)
 private val DarkTextSub = Color(0xFF8A8A8A)
 private val DarkTextMain = Color(0xFFFFFFFF)
 private val OrangeStart = Color(0xFFE4572E)
+private val OrangeEnd = Color(0xFFFFA35C)
 
 // 折线趋势色（想换别的改这里）
 private val TrendColor = Color(0xFFFFD08A)
@@ -53,7 +64,11 @@ fun StatsScreen(nav: NavController) {
     var hours by remember { mutableStateOf<List<HourStatRow>>(emptyList()) }
     var cursorHour by remember { mutableStateOf<Int?>(null) }
 
-    LaunchedEffect(range) {
+    // 删除统计：确认对话框目标 + 重载触发器
+    var deleteTarget by remember { mutableStateOf<TaskStatRow?>(null) }
+    var reloadTrigger by remember { mutableIntStateOf(0) }
+
+    LaunchedEffect(range, reloadTrigger) {
         val now = System.currentTimeMillis()
         val from = when (range) {
             0 -> {
@@ -77,6 +92,8 @@ fun StatsScreen(nav: NavController) {
     val textSub = if (isDark) DarkTextSub else MaterialTheme.colorScheme.outline
     val trackColor = if (isDark) DarkTrack else Color(0xFFEAEAEA)
     val gridColor = if (isDark) Color(0xFF2A2A2A) else Color(0xFFE0E0E0)
+    val cardBg = if (isDark) DarkSheetRow else Color(0xFFF5F1EA)
+    val dividerColor = if (isDark) DarkDivider else Color(0xFFE5E5E5)
 
     val primary = MaterialTheme.colorScheme.primary
     val secondary = TrendColor
@@ -186,25 +203,134 @@ fun StatsScreen(nav: NavController) {
             StaggerIn(index = 5) {
                 Text(labelByTask, style = MaterialTheme.typography.titleMedium, color = textMain)
             }
+            Spacer(Modifier.height(4.dp))
+            StaggerIn(index = 6) {
+                Text(
+                    text = "长按任一行可删除该任务的全部专注记录",
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Light,
+                    letterSpacing = 2.sp,
+                    color = textSub.copy(alpha = 0.7f)
+                )
+            }
             Spacer(Modifier.height(12.dp))
             if (rows.isEmpty() || rows.all { it.focusMin == 0 }) {
-                StaggerIn(index = 6) {
+                StaggerIn(index = 7) {
                     EmptyHint(labelNoFocus, textSub)
                 }
             } else {
                 rows.take(10).forEachIndexed { idx, r ->
                     StaggerIn(
-                        index = 6 + idx,
+                        index = 7 + idx,
                         modifier = Modifier.fillMaxWidth(),
                         startOffsetX = 32.dp,
                     ) {
-                        TaskBarRow(r, maxTask, primary, trackColor, textMain, textSub)
+                        TaskBarRow(
+                            r = r,
+                            maxTask = maxTask,
+                            barColor = primary,
+                            trackColor = trackColor,
+                            textMain = textMain,
+                            textSub = textSub,
+                            cardBg = cardBg,
+                            dividerColor = dividerColor,
+                            onLongPress = {
+                                if (app.prefs.vibrate) Haptic.tap(ctx)
+                                deleteTarget = r
+                            }
+                        )
                     }
                 }
             }
 
             Spacer(Modifier.height(32.dp))
         }
+    }
+
+    // ── 删除确认对话框 ──
+    val target = deleteTarget
+    if (target != null) {
+        AlertDialog(
+            onDismissRequest = { deleteTarget = null },
+            containerColor = if (isDark) DarkCard else MaterialTheme.colorScheme.surface,
+            titleContentColor = textMain,
+            textContentColor = textSub,
+            shape = RoundedCornerShape(18.dp),
+            title = {
+                Text(
+                    text = "删除统计数据",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Thin,
+                    letterSpacing = 4.sp
+                )
+            },
+            text = {
+                Column {
+                    Text(
+                        text = "确定删除「${target.taskName}」的全部专注记录？",
+                        fontSize = 13.sp,
+                        letterSpacing = 1.sp
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        text = "共 ${target.focusMin} 分钟 · ${target.pomodoros} 个番茄",
+                        fontSize = 11.sp,
+                        letterSpacing = 1.sp,
+                        color = textSub
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        text = "此操作不可恢复",
+                        fontSize = 10.sp,
+                        letterSpacing = 2.sp,
+                        color = OrangeStart
+                    )
+                }
+            },
+            confirmButton = {
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(999.dp))
+                        .background(
+                            Brush.horizontalGradient(listOf(OrangeStart, OrangeEnd))
+                        )
+                        .clickable {
+                            if (app.prefs.vibrate) Haptic.tap(ctx)
+                            app.deleteTaskStats(target.taskId)
+                            deleteTarget = null
+                            reloadTrigger++
+                        }
+                        .padding(horizontal = 22.dp, vertical = 10.dp)
+                ) {
+                    Text(
+                        "删除",
+                        color = Color.White,
+                        fontSize = 13.sp,
+                        letterSpacing = 3.sp
+                    )
+                }
+            },
+            dismissButton = {
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(999.dp))
+                        .border(
+                            1.dp,
+                            textSub.copy(alpha = 0.3f),
+                            RoundedCornerShape(999.dp)
+                        )
+                        .clickable { deleteTarget = null }
+                        .padding(horizontal = 22.dp, vertical = 10.dp)
+                ) {
+                    Text(
+                        "取消",
+                        color = textSub,
+                        fontSize = 13.sp,
+                        letterSpacing = 3.sp
+                    )
+                }
+            }
+        )
     }
 }
 
@@ -225,27 +351,37 @@ private fun TaskBarRow(
     barColor: Color,
     trackColor: Color,
     textMain: Color,
-    textSub: Color
+    textSub: Color,
+    cardBg: Color,
+    dividerColor: Color,
+    onLongPress: () -> Unit,
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 5.dp),
+            .padding(vertical = 3.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(cardBg)
+            .border(1.dp, dividerColor, RoundedCornerShape(12.dp))
+            .pointerInput(r.taskId) {
+                detectTapGestures(onLongPress = { onLongPress() })
+            }
+            .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
             r.taskName,
             style = MaterialTheme.typography.bodyMedium,
             color = textMain,
-            modifier = Modifier.width(90.dp),
+            modifier = Modifier.width(84.dp),
             maxLines = 1
         )
         Canvas(
             modifier = Modifier
-                .height(18.dp)
+                .height(16.dp)
                 .weight(1f)
         ) {
-            val h = 14.dp.toPx()
+            val h = 12.dp.toPx()
             val top = (size.height - h) / 2f
             val r2 = h / 2f
             drawRoundRect(
@@ -304,7 +440,6 @@ private fun HourBarChart(
     val cursorMin: Int = cursorHour?.let { hourMap[it]?.focusMin ?: 0 } ?: 0
 
     Column(modifier = Modifier.fillMaxWidth()) {
-        // ── 实时读数 ──
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -391,7 +526,6 @@ private fun HourBarChart(
             val barW = (slotW * 0.55f).coerceAtLeast(3.dp.toPx())
             val cornerR = (barW / 2f).coerceAtMost(6.dp.toPx())
 
-            // Y 轴网格
             val ySteps = 4
             for (i in 0..ySteps) {
                 val y = topPad + chartH * (1f - i.toFloat() / ySteps)
@@ -413,7 +547,6 @@ private fun HourBarChart(
                 )
             }
 
-            // ── 柱子 ──
             for (i in 0 until 24) {
                 val min = hourMap[i]?.focusMin ?: 0
                 if (min <= 0) continue
@@ -442,7 +575,6 @@ private fun HourBarChart(
                 )
             }
 
-            // ── 折线：24 点连续 ──
             val linePoints = mutableListOf<Offset>()
             for (i in 0 until 24) {
                 val min = hourMap[i]?.focusMin ?: 0
@@ -477,7 +609,6 @@ private fun HourBarChart(
                 }
             }
 
-            // X 轴小时标（拼接 hourSuffix，如 "12时" / "12h"）
             listOf(0, 6, 12, 18, 23).forEach { hour ->
                 val x = leftPad + hour * slotW + slotW / 2f
                 val layout = textMeasurer.measure("$hour$hourSuffix", labelStyle)
@@ -491,7 +622,6 @@ private fun HourBarChart(
                 )
             }
 
-            // ── 磁吸游标 ──
             cursorHour?.let { ch ->
                 val cx = leftPad + ch * slotW + slotW / 2f
                 val cMin = hourMap[ch]?.focusMin ?: 0
