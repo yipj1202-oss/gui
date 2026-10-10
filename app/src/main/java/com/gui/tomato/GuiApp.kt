@@ -4,6 +4,9 @@ import android.app.Application
 import android.content.Context
 import android.net.Uri
 import android.widget.Toast
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import com.gui.tomato.data.StatsRepo
 import com.gui.tomato.data.TaskStatRow
 import com.gui.tomato.data.backup.BackupStore
@@ -20,6 +23,9 @@ class GuiApp : Application() {
     lateinit var prefs: AppPrefs
         private set
     private var backupStore: BackupStore? = null
+
+    // 长按任务 → 待启动的 taskId（跨页面传参）。非空时首页会弹出方案选择
+    var pendingStartTaskId: Long? by mutableStateOf(null)
 
     override fun onCreate() {
         super.onCreate()

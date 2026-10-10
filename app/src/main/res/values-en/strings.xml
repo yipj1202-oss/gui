@@ -24,7 +24,7 @@
     <!-- Settings -->
     <string name="settings_title">Settings</string>
     <string name="settings_header">Settings</string>
-    <string name="settings_items_count">07 ITEMS</string>
+    <string name="settings_items_count">09 ITEMS</string>
     <string name="settings_group_appearance">Appearance</string>
     <string name="settings_group_appearance_sub">APPEARANCE</string>
     <string name="settings_group_alerts">Alerts</string>
@@ -41,6 +41,13 @@
     <string name="settings_card_notify_sub">NOTIFICATION</string>
     <string name="settings_card_vibrate">Vibrate</string>
     <string name="settings_card_vibrate_sub">VIBRATE</string>
+    <string name="settings_card_sound">Alert Sound</string>
+    <string name="settings_card_sound_sub">ALERT SOUND</string>
+    <string name="settings_card_tone">Tone</string>
+    <string name="settings_card_tone_sub">TONE</string>
+    <string name="tone_dusk_drum">Dusk Drum</string>
+    <string name="tone_dawn_bell">Pine Wind</string>
+    <string name="tone_water_clock">Mountain Spring</string>
     <string name="settings_card_export">Export Backup</string>
     <string name="settings_card_export_sub">EXPORT BACKUP</string>
     <string name="settings_card_import">Import Backup</string>
@@ -151,4 +158,9 @@
     <string name="preset_save">Save Preset</string>
     <string name="settings_import_toast">Import: %1$s</string>
     <string name="task_image_remove">Remove</string>
+    <!-- OVERCLOCK -->
+    <string name="overclock_title">OVERCLOCK</string>
+    <string name="home_overclock_entry">Overclock</string>
+    <string name="preset_checkbox_overclock">Set as OVERCLOCK preset</string>
+    <string name="settings_overclock_hint">Set an OVERCLOCK preset to enable the home button</string>
 </resources>

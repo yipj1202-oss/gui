@@ -4,6 +4,8 @@ import android.content.Context
 import android.content.SharedPreferences
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 
 class AppPrefs(ctx: Context) {
@@ -34,4 +36,30 @@ class AppPrefs(ctx: Context) {
     var vibrate: Boolean
         get() = sp.getBoolean("vibrate", true)
         set(v) = sp.edit().putBoolean("vibrate", v).apply()
+
+    // ── 音效 ──
+    private var soundEnabledState by mutableStateOf(sp.getBoolean("soundOn", true))
+    var soundEnabled: Boolean
+        get() = soundEnabledState
+        set(v) {
+            soundEnabledState = v
+            sp.edit().putBoolean("soundOn", v).apply()
+        }
+
+    private var soundIdxState by mutableIntStateOf(sp.getInt("soundIdx", 0))
+    var soundIdx: Int
+        get() = soundIdxState
+        set(v) {
+            soundIdxState = v
+            sp.edit().putInt("soundIdx", v).apply()
+        }
+
+    // ── OVERCLOCK 狂暴方案 id（-1 表示未设置）──
+    private var overclockPresetIdState by mutableLongStateOf(sp.getLong("overclockPresetId", -1L))
+    var overclockPresetId: Long
+        get() = overclockPresetIdState
+        set(v) {
+            overclockPresetIdState = v
+            sp.edit().putLong("overclockPresetId", v).apply()
+        }
 }

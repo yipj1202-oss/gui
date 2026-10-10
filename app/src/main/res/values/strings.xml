@@ -24,7 +24,7 @@
     <!-- 设置 -->
     <string name="settings_title">设置</string>
     <string name="settings_header">设置</string>
-    <string name="settings_items_count">07 ITEMS</string>
+    <string name="settings_items_count">09 ITEMS</string>
     <string name="settings_group_appearance">外观</string>
     <string name="settings_group_appearance_sub">APPEARANCE</string>
     <string name="settings_group_alerts">提醒</string>
@@ -41,6 +41,13 @@
     <string name="settings_card_notify_sub">NOTIFICATION</string>
     <string name="settings_card_vibrate">震动</string>
     <string name="settings_card_vibrate_sub">VIBRATE</string>
+    <string name="settings_card_sound">提示音</string>
+    <string name="settings_card_sound_sub">ALERT SOUND</string>
+    <string name="settings_card_tone">音效</string>
+    <string name="settings_card_tone_sub">TONE</string>
+    <string name="tone_dusk_drum">暮鼓</string>
+    <string name="tone_dawn_bell">松风</string>
+    <string name="tone_water_clock">涧泉</string>
     <string name="settings_card_export">导出备份</string>
     <string name="settings_card_export_sub">EXPORT BACKUP</string>
     <string name="settings_card_import">导入备份</string>
@@ -151,4 +158,9 @@
     <string name="preset_save">保存方案</string>
     <string name="settings_import_toast">导入: %1$s</string>
     <string name="task_image_remove">移除</string>
+    <!-- OVERCLOCK 狂暴模式 -->
+    <string name="overclock_title">OVERCLOCK</string>
+    <string name="home_overclock_entry">过载</string>
+    <string name="preset_checkbox_overclock">设为狂暴方案</string>
+    <string name="settings_overclock_hint">未设置狂暴方案时，首页过载按钮不可用</string>
 </resources>

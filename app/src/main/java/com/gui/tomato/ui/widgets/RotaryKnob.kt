@@ -118,7 +118,9 @@ fun RotaryKnob(
         val dotInner = if (bigKnob) 3.dp else 1.5.dp
         val tickMajor = if (bigKnob) 2.5.dp else 1.6.dp
         val tickMinor = if (bigKnob) 1.2.dp else 0.9.dp
-        val textOffsetY = if (bigKnob) 10.dp else 6.dp
+
+        // 数字块统一下移量：小旋钮也向大旋钮看齐，让数字离刻度更远
+        val textOffsetY = if (bigKnob) 10.dp else 14.dp
 
         fun fireFeedback() {
             Haptic.tap(context)

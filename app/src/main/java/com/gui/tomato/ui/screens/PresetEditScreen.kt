@@ -43,6 +43,7 @@ fun PresetEditScreen(nav: NavController) {
     var everyN by remember { mutableIntStateOf(4) }
     var longB by remember { mutableIntStateOf(15) }
     var isDefault by remember { mutableStateOf(false) }
+    var isOverclock by remember { mutableStateOf(false) }
 
     val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
     val bgColor = if (isDark) DarkBg else MaterialTheme.colorScheme.background
@@ -193,6 +194,29 @@ fun PresetEditScreen(nav: NavController) {
                 )
             }
 
+            Spacer(Modifier.height(8.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Checkbox(
+                    checked = isOverclock,
+                    onCheckedChange = { isOverclock = it },
+                    colors = CheckboxDefaults.colors(
+                        checkedColor = OrangeStart,
+                        uncheckedColor = textSub
+                    )
+                )
+                Spacer(Modifier.width(4.dp))
+                Text(
+                    stringResource(R.string.preset_checkbox_overclock),
+                    color = textMain,
+                    fontSize = 14.sp,
+                    letterSpacing = 1.sp
+                )
+            }
+
             Spacer(Modifier.height(24.dp))
 
             Button(
@@ -209,6 +233,10 @@ fun PresetEditScreen(nav: NavController) {
                         if (isDefault) app.db.presetDao().clearDefault()
                         val id = app.db.presetDao().insert(p)
                         if (isDefault) app.db.presetDao().setDefault(id)
+                        // 若勾选"设为狂暴方案"，把 id 存到 prefs
+                        if (isOverclock) {
+                            app.prefs.overclockPresetId = id
+                        }
                     }
                     nav.popBackStack()
                 },
