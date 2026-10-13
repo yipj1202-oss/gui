@@ -1,60 +1,90 @@
 @echo off
-title êĞ ¡¤ Ò»¼ü·¢²¼
+chcp 65001 >nul
+title æ™· Â· ä¸€é”®å‘å¸ƒ
 
 cd /d E:\dev\tomato
 if errorlevel 1 goto :err
 
 echo.
 echo ========================================
-echo   êĞ ¡¤ Ò»¼ü·¢²¼
+echo   æ™· Â· ä¸€é”®å‘å¸ƒ
 echo ========================================
 echo.
 
-set /p VER=ÇëÊäÈë°æ±¾ºÅ£¨ÀıÈç 1.1£©: 
+set /p VER=è¯·è¾“å…¥ç‰ˆæœ¬å·ï¼ˆä¾‹å¦‚ 1.1ï¼‰: 
 if "%VER%"=="" goto :err
 
+:: === [1/7] åŒæ­¥ RELEASE_NOTES.md åˆ° assets ===
 echo.
-echo [1/5] Ôİ´æ²¢¼ì²é±¾µØ¸Ä¶¯...
+echo [1/7] åŒæ­¥ RELEASE_NOTES.md åˆ° assets...
+if not exist "app\src\main\assets\" mkdir "app\src\main\assets"
+copy /y "RELEASE_NOTES.md" "app\src\main\assets\RELEASE_NOTES.md" >nul 2>&1
+if errorlevel 1 (
+    echo å¤åˆ¶å¤±è´¥ï¼šè¯·ç¡®è®¤æ ¹ç›®å½• E:\dev\tomato\RELEASE_NOTES.md å­˜åœ¨
+    goto :err
+)
+echo å·²åŒæ­¥ã€‚
+
+:: === [2/7] è‡ªåŠ¨å‡çº§ versionCode / versionName ===
+echo.
+echo [2/7] å‡çº§ç‰ˆæœ¬å·...
+set NEW_VN=%VER%
+powershell -NoProfile -Command "$c=[IO.File]::ReadAllText('app\build.gradle');$q=[char]34;$m=[regex]::Match($c,'defaultConfig\s*\{[\s\S]*?versionCode\s+(\d+)');$oldVC=$m.Groups[1].Value;$newVC=[string]([int]$oldVC+1);$c=[regex]::Replace($c,'(defaultConfig\s*\{[\s\S]*?versionCode\s+)\d+','${1}'+$newVC,1);$p2='(defaultConfig\s*\{[\s\S]*?versionName\s+)'+$q+'[^'+$q+']*'+$q;$oldVN=[regex]::Match($c,'versionName\s+'+$q+'([^'+$q+'])'+$q).Groups[1].Value;$c=[regex]::Replace($c,$p2,'${1}'+$q+$env:NEW_VN+$q,1);[IO.File]::WriteAllText('app\build.gradle',$c);Write-Host('  versionCode: '+$oldVC+' -> '+$newVC);Write-Host('  versionName: '+$oldVN+' -> '+$env:NEW_VN)"
+if errorlevel 1 (
+    echo ç‰ˆæœ¬å·å‡çº§å¤±è´¥ï¼Œè¯·æ£€æŸ¥ app\build.gradle
+    goto :err
+)
+
+:: === [3/7] git add + commit ===
+echo.
+echo [3/7] æäº¤æ”¹åŠ¨...
 git add .
 git diff-index --quiet HEAD --
 if errorlevel 1 (
     git commit -m "release: v%VER%"
-    echo ÒÑÌá½»±¾µØ¸Ä¶¯¡£
+    echo å·²æäº¤ã€‚
 ) else (
-    echo ÎŞ¸Ä¶¯£¬Ìø¹ıÌá½»¡£
+    echo æ— æ”¹åŠ¨ï¼Œè·³è¿‡æäº¤ã€‚
 )
 
+:: === [4/7] git pull ===
 echo.
-echo [2/5] À­È¡Ô¶¶Ë×îĞÂ´úÂë...
+echo [4/7] æ‹‰å–è¿œç«¯æœ€æ–°...
 git pull --rebase
 if errorlevel 1 goto :err
 
+:: === [5/7] git push ===
 echo.
-echo [3/5] ÍÆËÍµ½ GitHub...
+echo [5/7] æ¨é€åˆ° GitHub...
 git push
 if errorlevel 1 goto :err
 
+:: === [6/7] æ‰“æ ‡ç­¾ ===
 echo.
-echo [4/5] ´ò±êÇ© v%VER%...
+echo [6/7] æ‰“æ ‡ç­¾ v%VER%...
 git tag v%VER%
-if errorlevel 1 goto :err
+if errorlevel 1 (
+    echo æ‰“æ ‡ç­¾å¤±è´¥ï¼ˆv%VER% å¯èƒ½å·²å­˜åœ¨ï¼‰ï¼Œè¯·æ¢ç‰ˆæœ¬å·
+    goto :err
+)
 
+:: === [7/7] æ¨é€æ ‡ç­¾ ===
 echo.
-echo [5/5] ÍÆËÍ±êÇ©£¬´¥·¢×Ô¶¯³ö°ü...
+echo [7/7] æ¨é€æ ‡ç­¾ï¼Œè§¦å‘å‡ºåŒ…...
 git push --tags
 if errorlevel 1 goto :err
 
 echo.
 echo ========================================
-echo   ·¢²¼³É¹¦£¡
+echo   å‘å¸ƒæˆåŠŸï¼
 echo.
-echo   ÉÔµÈ 3 ·ÖÖÓ£¬È¥ÕâÀïÏÂÔØ APK£º
+echo   ç¨ç­‰ 3 åˆ†é’Ÿï¼Œå»è¿™é‡Œä¸‹è½½ APKï¼š
 echo   https://github.com/yipj1202-oss/gui/releases
 echo ========================================
 goto :done
 
 :err
 echo.
-echo === ³ö´íÁË£¬Çë¼ì²éÉÏ·½ĞÅÏ¢ ===
+echo === å‡ºé”™äº†ï¼Œè¯·æ£€æŸ¥ä¸Šæ–¹ä¿¡æ¯ ===
 :done
 pause

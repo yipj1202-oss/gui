@@ -18,8 +18,11 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -66,7 +69,9 @@ class MainActivity : ComponentActivity() {
             var mainVisible by remember { mutableStateOf(false) }
             val mainAlpha = remember { Animatable(0f) }
 
-            // 更新检查结果
+            // 本次更新弹窗内容（null = 不弹）
+            var updateNotes by remember { mutableStateOf<String?>(null) }
+            // 远端新版本（null = 无更新）
             var updateInfo by remember { mutableStateOf<UpdateChecker.UpdateInfo?>(null) }
 
             LaunchedEffect(Unit) {
@@ -79,7 +84,21 @@ class MainActivity : ComponentActivity() {
                 )
                 splashVisible = false
 
-                // 主界面显示后，后台静默检查更新
+                // ── ① 先判断"是否刚升级"：只在版本号变大时弹一次 ──
+                val currentVc = BuildConfig.VERSION_CODE
+                val lastVc = prefs.lastRunVersionCode
+
+                if (lastVc != -1 && lastVc < currentVc) {
+                    val notes = loadAssetText(app, "RELEASE_NOTES.md")
+                    if (!notes.isNullOrBlank()) {
+                        updateNotes = notes
+                    }
+                }
+
+                // 立刻记录当前版本号（无论是否弹窗）
+                prefs.lastRunVersionCode = currentVc
+
+                // ── ② 再静默检查远端新版本 ──
                 val info = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
                     UpdateChecker.check(app)
                 }
@@ -104,14 +123,22 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
-            // 更新提示弹窗
-            updateInfo?.let { info ->
+            // ── 弹窗优先级：本次更新（先）→ 远端新版本（后）──
+            val notes = updateNotes
+            val remote = updateInfo
+            if (notes != null) {
+                UpdateNotesDialog(
+                    notes = notes,
+                    versionName = BuildConfig.VERSION_NAME,
+                    onDismiss = { updateNotes = null }
+                )
+            } else if (remote != null) {
                 UpdateDialog(
-                    info = info,
+                    info = remote,
                     onDismiss = { updateInfo = null },
                     onGoToDownload = {
                         try {
-                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(info.htmlUrl))
+                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(remote.htmlUrl))
                             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                             startActivity(intent)
                         } catch (_: Exception) {
@@ -121,6 +148,15 @@ class MainActivity : ComponentActivity() {
                 )
             }
         }
+    }
+}
+
+/** 从 assets 读文本；失败返回 null */
+private fun loadAssetText(ctx: Context, name: String): String? {
+    return try {
+        ctx.assets.open(name).bufferedReader().use { it.readText() }
+    } catch (_: Exception) {
+        null
     }
 }
 
@@ -137,6 +173,7 @@ private fun MainScaffold(prefs: AppPrefs) {
     }
 }
 
+/** "发现新版本" 弹窗 */
 @Composable
 private fun UpdateDialog(
     info: UpdateChecker.UpdateInfo,
@@ -211,6 +248,71 @@ private fun UpdateDialog(
                 Text(
                     "以后再说",
                     color = Color(0xFF8A8A8A),
+                    fontSize = 13.sp,
+                    letterSpacing = 3.sp
+                )
+            }
+        }
+    )
+}
+
+/** "本次更新内容" 弹窗 */
+@Composable
+private fun UpdateNotesDialog(
+    notes: String,
+    versionName: String,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = Color(0xFF1A1A1A),
+        shape = RoundedCornerShape(18.dp),
+        title = {
+            Column {
+                Text(
+                    text = "更新内容",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Thin,
+                    letterSpacing = 4.sp,
+                    color = Color.White
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = "v$versionName",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Light,
+                    letterSpacing = 3.sp,
+                    color = OrangeStart
+                )
+            }
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 320.dp)
+                    .verticalScroll(rememberScrollState())
+            ) {
+                Text(
+                    text = notes.trim(),
+                    fontSize = 12.sp,
+                    lineHeight = 20.sp,
+                    letterSpacing = 1.sp,
+                    color = Color(0xFFBFBFBF)
+                )
+            }
+        },
+        confirmButton = {
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(999.dp))
+                    .background(Brush.horizontalGradient(listOf(OrangeStart, OrangeEnd)))
+                    .clickable { onDismiss() }
+                    .padding(horizontal = 26.dp, vertical = 10.dp)
+            ) {
+                Text(
+                    "知道了",
+                    color = Color.White,
                     fontSize = 13.sp,
                     letterSpacing = 3.sp
                 )

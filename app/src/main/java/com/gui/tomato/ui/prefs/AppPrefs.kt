@@ -62,4 +62,9 @@ class AppPrefs(ctx: Context) {
             overclockPresetIdState = v
             sp.edit().putLong("overclockPresetId", v).apply()
         }
+
+    // ── 上次运行时的 versionCode（-1 表示首次安装）──
+    var lastRunVersionCode: Int
+        get() = sp.getInt("lastRunVc", -1)
+        set(v) = sp.edit().putInt("lastRunVc", v).apply()
 }
