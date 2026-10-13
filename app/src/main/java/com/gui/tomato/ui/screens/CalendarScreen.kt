@@ -1,11 +1,21 @@
 package com.gui.tomato.ui.screens
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -18,8 +28,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -42,7 +55,6 @@ private val DarkTextSub = Color(0xFF8A8A8A)
 private val DarkTextMain = Color(0xFFFFFFFF)
 private val OrangeStart = Color(0xFFE4572E)
 
-// 星期表头用字符串资源 ID，运行时再 stringResource
 private val WeekLabelRes = listOf(
     R.string.calendar_weekday_1,
     R.string.calendar_weekday_2,
@@ -53,7 +65,7 @@ private val WeekLabelRes = listOf(
     R.string.calendar_weekday_7,
 )
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun CalendarScreen(nav: NavController) {
     val ctx = LocalContext.current
@@ -77,8 +89,21 @@ fun CalendarScreen(nav: NavController) {
         mutableStateOf(Calendar.getInstance().get(Calendar.DAY_OF_MONTH))
     }
     var showAddDialog by remember { mutableStateOf(false) }
+    var showYearPicker by remember { mutableStateOf(false) }
     var newTitle by remember { mutableStateOf("") }
     var taskToDelete by remember { mutableStateOf<Task?>(null) }
+
+    // 左右滑动切月：位移 + 手势
+    val swipeOffset = remember { Animatable(0f) }
+
+    fun goPrevMonth() {
+        currentMonth = (currentMonth.clone() as Calendar).apply { add(Calendar.MONTH, -1) }
+        selectedDay = -1
+    }
+    fun goNextMonth() {
+        currentMonth = (currentMonth.clone() as Calendar).apply { add(Calendar.MONTH, 1) }
+        selectedDay = -1
+    }
 
     val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
     val bgColor = if (isDark) DarkBg else MaterialTheme.colorScheme.background
@@ -129,7 +154,11 @@ fun CalendarScreen(nav: NavController) {
                             fontSize = 22.sp,
                             fontWeight = FontWeight.Thin,
                             letterSpacing = 4.sp,
-                            color = textMain
+                            color = textMain,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable { showYearPicker = true }
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
                         )
                     }
                 },
@@ -137,24 +166,14 @@ fun CalendarScreen(nav: NavController) {
                 actions = {
                     StaggerIn(index = 1, startOffsetY = 14.dp) {
                         Row {
-                            IconButton(onClick = {
-                                currentMonth = (currentMonth.clone() as Calendar).apply {
-                                    add(Calendar.MONTH, -1)
-                                }
-                                selectedDay = -1
-                            }) {
+                            IconButton(onClick = { goPrevMonth() }) {
                                 Icon(
                                     Icons.Filled.ChevronLeft,
                                     contentDescription = stringResource(R.string.calendar_prev_month),
                                     tint = textSub
                                 )
                             }
-                            IconButton(onClick = {
-                                currentMonth = (currentMonth.clone() as Calendar).apply {
-                                    add(Calendar.MONTH, 1)
-                                }
-                                selectedDay = -1
-                            }) {
+                            IconButton(onClick = { goNextMonth() }) {
                                 Icon(
                                     Icons.Filled.ChevronRight,
                                     contentDescription = stringResource(R.string.calendar_next_month),
@@ -191,7 +210,7 @@ fun CalendarScreen(nav: NavController) {
                 .fillMaxSize()
                 .padding(horizontal = 8.dp, vertical = 4.dp)
         ) {
-            // 星期表头
+            // 星期表头（固定，不跟着滑）
             StaggerIn(index = 2, startOffsetY = 10.dp) {
                 Row(Modifier.fillMaxWidth().padding(bottom = 6.dp)) {
                     WeekLabelRes.forEach { resId ->
@@ -208,52 +227,130 @@ fun CalendarScreen(nav: NavController) {
                 }
             }
 
-            // 月历网格：逐格错落
-            val weeks2 = cells.chunked(7)
-            Column(
+            // 月历网格：可左右滑动切月
+            BoxWithConstraints(
                 Modifier
                     .fillMaxWidth()
                     .weight(1f)
             ) {
-                weeks2.forEachIndexed { weekIdx, week ->
-                    Row(
-                        Modifier
-                            .fillMaxWidth()
-                            .weight(1f)
-                            .padding(vertical = 2.dp),
-                        horizontalArrangement = Arrangement.spacedBy(3.dp)
-                    ) {
-                        week.forEachIndexed { colIdx, day ->
-                            val globalIdx = weekIdx * 7 + colIdx
-                            Box(Modifier.weight(1f).fillMaxHeight()) {
-                                StaggerIn(
-                                    index = 3 + globalIdx,
-                                    modifier = Modifier.fillMaxSize(),
-                                    baseDelayMs = 40,
-                                    durationMs = 420,
-                                    startOffsetX = 24.dp,
-                                    startOffsetY = 12.dp,
-                                ) {
-                                    if (day != null) {
-                                        DayCell(
-                                            day = day,
-                                            tasks = tasksByDay[day] ?: emptyList(),
-                                            isToday = day == todayDay,
-                                            isSelected = day == selectedDay,
-                                            cellColor = cellColor,
-                                            textMain = textMain,
-                                            textSub = textSub,
-                                            onDayClick = { selectedDay = day },
-                                            onTaskClick = { t -> nav.navigate("taskDetail/" + t.id) },
-                                            onTaskLongPress = { t -> taskToDelete = t }
+                val density = LocalDensity.current
+                val widthPx = with(density) { maxWidth.toPx() }
+                val threshold = widthPx * 0.22f
+
+                val weeks2 = cells.chunked(7)
+
+                Column(
+                    Modifier
+                        .fillMaxSize()
+                        .graphicsLayer { translationX = swipeOffset.value }
+                        .pointerInput(year, month) {
+                            detectHorizontalDragGestures(
+                                onHorizontalDrag = { change, dragAmount ->
+                                    change.consume()
+                                    scope.launch {
+                                        val nv = (swipeOffset.value + dragAmount)
+                                            .coerceIn(-widthPx, widthPx)
+                                        swipeOffset.snapTo(nv)
+                                    }
+                                },
+                                onDragEnd = {
+                                    val v = swipeOffset.value
+                                    when {
+                                        v > threshold -> {
+                                            scope.launch {
+                                                swipeOffset.animateTo(
+                                                    widthPx,
+                                                    tween(160, easing = FastOutSlowInEasing)
+                                                )
+                                                goPrevMonth()
+                                                swipeOffset.snapTo(-widthPx)
+                                                swipeOffset.animateTo(
+                                                    0f,
+                                                    tween(220, easing = FastOutSlowInEasing)
+                                                )
+                                            }
+                                        }
+                                        v < -threshold -> {
+                                            scope.launch {
+                                                swipeOffset.animateTo(
+                                                    -widthPx,
+                                                    tween(160, easing = FastOutSlowInEasing)
+                                                )
+                                                goNextMonth()
+                                                swipeOffset.snapTo(widthPx)
+                                                swipeOffset.animateTo(
+                                                    0f,
+                                                    tween(220, easing = FastOutSlowInEasing)
+                                                )
+                                            }
+                                        }
+                                        else -> {
+                                            scope.launch {
+                                                swipeOffset.animateTo(
+                                                    0f,
+                                                    spring(
+                                                        dampingRatio = 0.72f,
+                                                        stiffness = Spring.StiffnessMedium
+                                                    )
+                                                )
+                                            }
+                                        }
+                                    }
+                                },
+                                onDragCancel = {
+                                    scope.launch {
+                                        swipeOffset.animateTo(
+                                            0f,
+                                            spring(
+                                                dampingRatio = 0.72f,
+                                                stiffness = Spring.StiffnessMedium
+                                            )
                                         )
-                                    } else {
-                                        Box(
-                                            Modifier
-                                                .fillMaxSize()
-                                                .clip(RoundedCornerShape(8.dp))
-                                                .background(cellEmptyColor)
-                                        )
+                                    }
+                                }
+                            )
+                        }
+                ) {
+                    weeks2.forEachIndexed { weekIdx, week ->
+                        Row(
+                            Modifier
+                                .fillMaxWidth()
+                                .weight(1f)
+                                .padding(vertical = 2.dp),
+                            horizontalArrangement = Arrangement.spacedBy(3.dp)
+                        ) {
+                            week.forEachIndexed { colIdx, day ->
+                                val globalIdx = weekIdx * 7 + colIdx
+                                Box(Modifier.weight(1f).fillMaxHeight()) {
+                                    StaggerIn(
+                                        index = 3 + globalIdx,
+                                        modifier = Modifier.fillMaxSize(),
+                                        baseDelayMs = 40,
+                                        durationMs = 420,
+                                        startOffsetX = 24.dp,
+                                        startOffsetY = 12.dp,
+                                    ) {
+                                        if (day != null) {
+                                            DayCell(
+                                                day = day,
+                                                tasks = tasksByDay[day] ?: emptyList(),
+                                                isToday = day == todayDay,
+                                                isSelected = day == selectedDay,
+                                                cellColor = cellColor,
+                                                textMain = textMain,
+                                                textSub = textSub,
+                                                onDayClick = { selectedDay = day },
+                                                onTaskClick = { t -> nav.navigate("taskDetail/" + t.id) },
+                                                onTaskLongPress = { t -> taskToDelete = t }
+                                            )
+                                        } else {
+                                            Box(
+                                                Modifier
+                                                    .fillMaxSize()
+                                                    .clip(RoundedCornerShape(8.dp))
+                                                    .background(cellEmptyColor)
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -262,6 +359,67 @@ fun CalendarScreen(nav: NavController) {
                 }
             }
         }
+    }
+
+    // 年份选择对话框
+    if (showYearPicker) {
+        val thisYear = Calendar.getInstance().get(Calendar.YEAR)
+        val years = remember { (thisYear - 10..thisYear + 10).toList() }
+        val listState = rememberLazyListState(
+            initialFirstVisibleItemIndex = (10 - 3).coerceAtLeast(0)
+        )
+        AlertDialog(
+            onDismissRequest = { showYearPicker = false },
+            containerColor = if (isDark) DarkCard else MaterialTheme.colorScheme.surface,
+            title = {
+                Text(
+                    text = "选择年份",
+                    fontWeight = FontWeight.Thin,
+                    letterSpacing = 4.sp,
+                    fontSize = 18.sp,
+                    color = textMain
+                )
+            },
+            text = {
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(300.dp)
+                ) {
+                    items(years) { y ->
+                        val selected = y == year
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(
+                                    if (selected) OrangeStart.copy(alpha = 0.14f)
+                                    else Color.Transparent
+                                )
+                                .clickable {
+                                    currentMonth = (currentMonth.clone() as Calendar).apply {
+                                        set(Calendar.YEAR, y)
+                                    }
+                                    selectedDay = -1
+                                    showYearPicker = false
+                                }
+                                .padding(horizontal = 12.dp, vertical = 12.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = y.toString(),
+                                fontSize = 18.sp,
+                                fontWeight = if (selected) FontWeight.Medium else FontWeight.Thin,
+                                letterSpacing = 2.sp,
+                                color = if (selected) OrangeStart else textMain
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {}
+        )
     }
 
     // 新建任务对话框
@@ -417,7 +575,7 @@ private fun DayCell(
                 fontWeight = FontWeight.Light,
                 color = if (task.completed) textSub.copy(alpha = 0.5f) else OrangeStart,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
+                overflow = TextOverflow.Clip,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(vertical = 1.dp)
@@ -426,6 +584,12 @@ private fun DayCell(
                     .combinedClickable(
                         onClick = { onTaskClick(task) },
                         onLongClick = { onTaskLongPress(task) }
+                    )
+                    .basicMarquee(
+                        iterations = Int.MAX_VALUE,
+                        initialDelayMillis = 1500,
+                        repeatDelayMillis = 900,
+                        velocity = 15.dp
                     )
                     .padding(horizontal = 2.dp, vertical = 1.dp)
             )
