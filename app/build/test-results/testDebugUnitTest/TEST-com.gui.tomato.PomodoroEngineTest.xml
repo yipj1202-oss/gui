@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.gui.tomato.PomodoroEngineTest" tests="6" skipped="0" failures="0" errors="0" timestamp="2026-10-09T04:07:34" hostname="DESKTOP-5H9D7UD" time="0.013">
+  <properties/>
+  <testcase name="finishAllReturnsToIdle" classname="com.gui.tomato.PomodoroEngineTest" time="0.008"/>
+  <testcase name="killRecoveryRecomputesRemain" classname="com.gui.tomato.PomodoroEngineTest" time="0.002"/>
+  <testcase name="afterFocusGoesToShortBreak" classname="com.gui.tomato.PomodoroEngineTest" time="0.001"/>
+  <testcase name="longBreakAfterEveryN" classname="com.gui.tomato.PomodoroEngineTest" time="0.0"/>
+  <testcase name="focusCountsDownByTimestamp" classname="com.gui.tomato.PomodoroEngineTest" time="0.0"/>
+  <testcase name="autoAdvanceOnElapsed" classname="com.gui.tomato.PomodoroEngineTest" time="0.001"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>
