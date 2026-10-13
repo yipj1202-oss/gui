@@ -1,7 +1,31 @@
+# Android
 *.iml
-.gradle
-local.properties
-build/
-.idea
+.gradle/
+/local.properties
+/.idea/
 .DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+
+# APK / AAB
 *.apk
+*.aab
+*.ap_
+*.dex
+
+# Keystore（签名文件，永远不要上传！）
+*.jks
+*.keystore
+keystore.properties
+
+# Kotlin
+.kotlin/
+
+# Log
+*.log
+
+# OS
+Thumbs.db

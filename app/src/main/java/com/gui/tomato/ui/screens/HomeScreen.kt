@@ -62,6 +62,7 @@ import com.gui.tomato.engine.Snapshot
 import com.gui.tomato.engine.State
 import com.gui.tomato.ui.components.StaggerIn
 import com.gui.tomato.util.Haptic
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -78,11 +79,9 @@ private val OrangeEnd = Color(0xFFFFA35C)
 private val DeepOrangeStart = Color(0xFFA83A1A)
 private val DeepOrangeEnd = Color(0xFFD9622B)
 
-// OVERCLOCK 烫橙
 private val OverStart = Color(0xFFC01F0F)
 private val OverEnd = Color(0xFFE4572E)
 
-// 自检发光：与过载主题同色（烫橙红），不割裂
 private val GoldColor = OverStart
 
 private val ScramblePool = "!@#$%&*+-=?<>[]{}|/\\~^;:アイウエオカキ".toList()
@@ -107,6 +106,7 @@ private fun isSamePreset(engine: PomodoroPreset, p: PomodoroPreset): Boolean {
 fun HomeScreen(nav: NavController) {
     val ctx = LocalContext.current
     val app = ctx.applicationContext as GuiApp
+    val scope = rememberCoroutineScope()
     var snap by remember { mutableStateOf(app.repo.current()) }
     var showPresetSheet by remember { mutableStateOf(false) }
     var showTaskSheet by remember { mutableStateOf(false) }
@@ -122,16 +122,37 @@ fun HomeScreen(nav: NavController) {
     val selfCheckAnim = remember { Animatable(0f) }
     var selfCheckActive by remember { mutableStateOf(selfCheckTrigger > 0) }
 
-    // ── OVERCLOCK 触发特效 ──
+    // ── OVERCLOCK ──
     var overclockIntroActive by remember { mutableStateOf(false) }
     val overclockRingAnim = remember { Animatable(0f) }
     val overclockTextAlpha = remember { Animatable(0f) }
     val overclockRevealCount = remember { Animatable(0f) }
     var overclockScrambleSeed by remember { mutableIntStateOf(0) }
 
+    // ── OVERCLOCK 退出动画 ──
+    var overclockOutroActive by remember { mutableStateOf(false) }
+    val overclockOutroAnim = remember { Animatable(0f) }
+
     val overclockTheme = isOverclock || overclockIntroActive
-    val themeStart = if (overclockTheme) OverStart else OrangeStart
-    val themeEnd = if (overclockTheme) OverEnd else OrangeEnd
+    val themeStartRaw = if (overclockTheme) OverStart else OrangeStart
+    val themeEndRaw = if (overclockTheme) OverEnd else OrangeEnd
+    // 全主题色平滑过渡：过载 ↔ 普通之间不硬切
+    val themeStart by animateColorAsState(
+        targetValue = themeStartRaw,
+        animationSpec = tween(650, easing = FastOutSlowInEasing),
+        label = "themeStart"
+    )
+    val themeEnd by animateColorAsState(
+        targetValue = themeEndRaw,
+        animationSpec = tween(650, easing = FastOutSlowInEasing),
+        label = "themeEnd"
+    )
+
+    // ── 连点"晷"3 次启动过载 ──
+    var settingsTapCount by remember { mutableIntStateOf(0) }
+    var pendingNavJob by remember { mutableStateOf<Job?>(null) }
+
+    val overclockReady = app.prefs.overclockPresetId > 0L
 
     LaunchedEffect(snap.state) {
         if (snap.state != State.IDLE && selfCheckActive) selfCheckActive = false
@@ -144,7 +165,7 @@ fun HomeScreen(nav: NavController) {
         }
     }
 
-    // 自检动画
+    // 自检
     LaunchedEffect(selfCheckTrigger) {
         if (selfCheckTrigger == 0) return@LaunchedEffect
         selfCheckActive = true
@@ -177,7 +198,7 @@ fun HomeScreen(nav: NavController) {
         }
     }
 
-    // overclock 触发动画（~3s）
+    // overclock 入场
     LaunchedEffect(overclockIntroActive) {
         if (!overclockIntroActive) return@LaunchedEffect
 
@@ -227,6 +248,39 @@ fun HomeScreen(nav: NavController) {
             snap = app.repo.current()
         }
         overclockIntroActive = false
+    }
+
+    // 结束番茄钟（过载时带退出动画）
+    fun doFinishAction() {
+        // 若 intro 正在跑，先取消
+        if (overclockIntroActive) overclockIntroActive = false
+
+        if (isOverclock) {
+            scope.launch {
+                overclockOutroActive = true
+                if (app.prefs.vibrate) Haptic.tap(ctx)
+
+                // 退出过载（主题色开始 650ms 平滑过渡回橙）
+                app.repo.exitOverclock()
+                snap = app.repo.current()
+
+                // 光波内收动画
+                overclockOutroAnim.snapTo(0f)
+                overclockOutroAnim.animateTo(1f, tween(600, easing = FastOutSlowInEasing))
+
+                // 结束番茄钟
+                app.repo.finish()
+                app.serviceStop()
+                snap = app.repo.current()
+
+                overclockOutroActive = false
+                overclockOutroAnim.snapTo(0f)
+            }
+        } else {
+            app.repo.finish()
+            app.serviceStop()
+            snap = app.repo.current()
+        }
     }
 
     LaunchedEffect(Unit) {
@@ -282,8 +336,6 @@ fun HomeScreen(nav: NavController) {
         (overclockRingAnim.value / 1.15f).coerceIn(0f, 1f)
     } else 0f
 
-    val overclockReady = app.prefs.overclockPresetId > 0L
-
     Scaffold(
         containerColor = bgColor,
         topBar = {
@@ -292,7 +344,28 @@ fun HomeScreen(nav: NavController) {
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
                 actions = {
                     StaggerIn(index = 0, startOffsetY = 14.dp) {
-                        IconButton(onClick = { nav.navigate("settings") }) {
+                        IconButton(onClick = {
+                            settingsTapCount++
+                            val currentCount = settingsTapCount
+
+                            if (currentCount == 1) {
+                                pendingNavJob?.cancel()
+                                pendingNavJob = scope.launch {
+                                    delay(700)
+                                    if (settingsTapCount == 1) {
+                                        settingsTapCount = 0
+                                        nav.navigate("settings")
+                                    }
+                                }
+                            } else if (currentCount >= 3) {
+                                pendingNavJob?.cancel()
+                                pendingNavJob = null
+                                settingsTapCount = 0
+                                if (overclockReady && snap.state == State.IDLE && !overclockIntroActive) {
+                                    overclockIntroActive = true
+                                }
+                            }
+                        }) {
                             Text(
                                 text = "晷",
                                 fontSize = 26.sp,
@@ -322,39 +395,21 @@ fun HomeScreen(nav: NavController) {
                     isPaused = snap.isPaused,
                     isDark = isDark,
                     isOverclock = isOverclock || overclockIntroActive,
+                    themeStart = themeStart,
+                    themeEnd = themeEnd,
                 )
             }
 
             Spacer(Modifier.height(16.dp))
 
             StaggerIn(index = 2) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    PresetLine(
-                        name = app.repo.engine.preset.name,
-                        focusMin = app.repo.engine.preset.focusMin,
-                        shortBreakMin = app.repo.engine.preset.shortBreakMin,
-                        isDark = isDark,
-                        onClick = { showPresetSheet = true }
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    OverclockPill(
-                        isOverclock = isOverclock,
-                        ready = overclockReady,
-                        canActivate = overclockReady && snap.state == State.IDLE && !overclockIntroActive,
-                        themeStart = themeStart,
-                        themeEnd = themeEnd,
-                        textSub = textSub,
-                        onClick = {
-                            if (overclockReady && snap.state == State.IDLE && !overclockIntroActive) {
-                                overclockIntroActive = true
-                            }
-                        },
-                        onExit = {
-                            app.repo.exitOverclock()
-                            snap = app.repo.current()
-                        }
-                    )
-                }
+                PresetLine(
+                    name = app.repo.engine.preset.name,
+                    focusMin = app.repo.engine.preset.focusMin,
+                    shortBreakMin = app.repo.engine.preset.shortBreakMin,
+                    isDark = isDark,
+                    onClick = { showPresetSheet = true }
+                )
             }
 
             Spacer(Modifier.height(36.dp))
@@ -367,6 +422,7 @@ fun HomeScreen(nav: NavController) {
                     selfCheckRing = ringOverride,
                     selfCheckNum = numOverride,
                     overclockIntro = overclockIntroActive,
+                    overclockOutro = overclockOutroAnim.value,
                     overclockTextAlpha = overclockTextAlpha.value,
                     overclockRevealCount = overclockRevealCount.value,
                     overclockGlow = overclockGlow,
@@ -403,7 +459,7 @@ fun HomeScreen(nav: NavController) {
                     onPause = { app.repo.pause(); snap = app.repo.current() },
                     onResume = { app.repo.resume(); snap = app.repo.current() },
                     onSkip = { app.repo.skip(); snap = app.repo.current() },
-                    onFinish = { app.repo.finish(); app.serviceStop(); snap = app.repo.current() }
+                    onFinish = { doFinishAction() }
                 )
             }
 
@@ -427,7 +483,7 @@ fun HomeScreen(nav: NavController) {
         }
     }
 
-    // ── 预设选择弹窗（A 方向）──
+    // 预设选择弹窗
     if (showPresetSheet) {
         ModalBottomSheet(
             onDismissRequest = {
@@ -467,16 +523,13 @@ fun HomeScreen(nav: NavController) {
                     color = textSub,
                     textAlign = TextAlign.Center
                 )
-
                 Spacer(Modifier.height(18.dp))
-
                 Box(
                     Modifier
                         .fillMaxWidth()
                         .height(1.dp)
                         .background(dividerColor)
                 )
-
                 Spacer(Modifier.height(16.dp))
 
                 LazyColumn(
@@ -553,7 +606,7 @@ fun HomeScreen(nav: NavController) {
         }
     }
 
-    // ── 任务选择弹窗（A 方向，同套语言）──
+    // 任务选择弹窗
     if (showTaskSheet) {
         ModalBottomSheet(
             onDismissRequest = { showTaskSheet = false },
@@ -590,23 +643,19 @@ fun HomeScreen(nav: NavController) {
                     color = textSub,
                     textAlign = TextAlign.Center
                 )
-
                 Spacer(Modifier.height(18.dp))
-
                 Box(
                     Modifier
                         .fillMaxWidth()
                         .height(1.dp)
                         .background(dividerColor)
                 )
-
                 Spacer(Modifier.height(16.dp))
 
                 LazyColumn(
                     contentPadding = PaddingValues(bottom = 12.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    // "无任务"卡片（虚线感：浅描边 + 空心点）
                     item {
                         StaggerIn(
                             index = 0,
@@ -626,7 +675,6 @@ fun HomeScreen(nav: NavController) {
                         }
                     }
 
-                    // 任务卡片
                     itemsIndexed(activeTasks) { idx, task ->
                         StaggerIn(
                             index = idx + 1,
@@ -655,7 +703,7 @@ fun HomeScreen(nav: NavController) {
     }
 }
 
-// ── 预设卡片（A 方向）──
+// ── 预设卡片 ──
 @Composable
 private fun PresetCard(
     index: Int,
@@ -737,7 +785,7 @@ private fun PresetCard(
     }
 }
 
-// ── 任务卡片（A 方向）──
+// ── 任务卡片 ──
 @Composable
 private fun TaskSelectCard(
     task: Task,
@@ -759,7 +807,6 @@ private fun TaskSelectCard(
             .padding(horizontal = 18.dp, vertical = 16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // 实心橙点（代表"有任务"）
         Box(
             Modifier
                 .size(7.dp)
@@ -793,7 +840,7 @@ private fun TaskSelectCard(
     }
 }
 
-// ── "无任务"卡片 ──
+// ── 无任务卡片 ──
 @Composable
 private fun NoTaskCard(
     isDark: Boolean,
@@ -801,7 +848,6 @@ private fun NoTaskCard(
     textSub: Color,
     onClick: () -> Unit,
 ) {
-    // 无任务：透明底 + 浅描边 + 空心点（跟"有任务"视觉区分）
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -816,7 +862,6 @@ private fun NoTaskCard(
             .padding(horizontal = 18.dp, vertical = 16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // 空心点
         Box(
             Modifier
                 .size(7.dp)
@@ -840,55 +885,6 @@ private fun NoTaskCard(
     }
 }
 
-// ── OVERCLOCK 入口小胶囊 ──
-@Composable
-private fun OverclockPill(
-    isOverclock: Boolean,
-    ready: Boolean,
-    canActivate: Boolean,
-    themeStart: Color,
-    themeEnd: Color,
-    textSub: Color,
-    onClick: () -> Unit,
-    onExit: () -> Unit,
-) {
-    val clickable = if (isOverclock) true else canActivate
-
-    Box(
-        modifier = Modifier
-            .clip(RoundedCornerShape(999.dp))
-            .then(
-                when {
-                    isOverclock -> Modifier.background(
-                        Brush.horizontalGradient(listOf(OverStart, OverEnd))
-                    )
-                    canActivate -> Modifier
-                        .background(themeStart.copy(alpha = 0.14f))
-                        .border(1.dp, themeStart.copy(alpha = 0.5f), RoundedCornerShape(999.dp))
-                    else -> Modifier
-                        .background(Color.Transparent)
-                        .border(1.dp, textSub.copy(alpha = 0.25f), RoundedCornerShape(999.dp))
-                }
-            )
-            .clickable(enabled = clickable) {
-                if (isOverclock) onExit() else onClick()
-            }
-            .padding(horizontal = 12.dp, vertical = 5.dp)
-    ) {
-        Text(
-            text = if (isOverclock) "⚡ 取消过载" else ("⚡ " + stringResource(R.string.home_overclock_entry)),
-            fontSize = 10.sp,
-            fontWeight = FontWeight.Medium,
-            letterSpacing = 3.sp,
-            color = when {
-                isOverclock -> Color.White
-                canActivate -> themeStart
-                else -> textSub.copy(alpha = 0.5f)
-            }
-        )
-    }
-}
-
 // ── 状态栏 ──
 @Composable
 private fun StatusLine(
@@ -896,6 +892,8 @@ private fun StatusLine(
     isPaused: Boolean,
     isDark: Boolean,
     isOverclock: Boolean,
+    themeStart: Color,
+    themeEnd: Color,
 ) {
     val infinite = rememberInfiniteTransition(label = "breath")
     val breathAlpha by infinite.animateFloat(
@@ -965,17 +963,28 @@ private fun StatusLine(
                 .background(dotColor)
         )
         Spacer(Modifier.width(10.dp))
-        Text(
-            text = label,
-            fontSize = 11.sp,
-            fontWeight = if (isOverclock) FontWeight.Medium else FontWeight.Light,
-            letterSpacing = 5.sp,
-            style = if (isOverclock) TextStyle(
-                brush = Brush.linearGradient(listOf(OverStart, OverEnd))
-            ) else TextStyle.Default,
-            color = if (isOverclock) Color.Unspecified
-            else if (isDark) DarkTextSub else MaterialTheme.colorScheme.outline
-        )
+
+        // OVERCLOCK ↔ READY 平滑切换
+        AnimatedContent(
+            targetState = label,
+            transitionSpec = {
+                fadeIn(tween(420, easing = FastOutSlowInEasing)) togetherWith
+                        fadeOut(tween(420, easing = FastOutSlowInEasing))
+            },
+            label = "statusLabel",
+        ) { text ->
+            Text(
+                text = text,
+                fontSize = 11.sp,
+                fontWeight = if (isOverclock) FontWeight.Medium else FontWeight.Light,
+                letterSpacing = 5.sp,
+                style = if (isOverclock) TextStyle(
+                    brush = Brush.linearGradient(listOf(themeStart, themeEnd))
+                ) else TextStyle.Default,
+                color = if (isOverclock) Color.Unspecified
+                else if (isDark) DarkTextSub else MaterialTheme.colorScheme.outline
+            )
+        }
     }
 }
 
@@ -1020,6 +1029,7 @@ private fun DashboardRing(
     selfCheckRing: Float?,
     selfCheckNum: Float?,
     overclockIntro: Boolean,
+    overclockOutro: Float,
     overclockTextAlpha: Float,
     overclockRevealCount: Float,
     overclockGlow: Float,
@@ -1149,6 +1159,25 @@ private fun DashboardRing(
                     style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
                 )
             }
+
+            // ── 过载退出光波：双圈从外向内收缩 ──
+            if (overclockOutro > 0f) {
+                val p = overclockOutro.coerceIn(0f, 1f)
+                val r1 = radius * (1f - p)
+                drawCircle(
+                    color = OverStart.copy(alpha = (1f - p) * 0.75f),
+                    radius = r1,
+                    center = center,
+                    style = Stroke(width = 3.dp.toPx())
+                )
+                val r2 = r1 * 0.7f
+                drawCircle(
+                    color = OverStart.copy(alpha = (1f - p) * 0.5f),
+                    radius = r2,
+                    center = center,
+                    style = Stroke(width = 2.dp.toPx())
+                )
+            }
         }
 
         Column(
@@ -1214,7 +1243,7 @@ private fun DashboardRing(
     }
 }
 
-// ── 控制按钮（大按钮缩小消散 → 三按钮错峰弹簧弹入）──
+// ── 控制按钮 ──
 @Composable
 private fun ControlButtons(
     snap: Snapshot,
@@ -1226,17 +1255,6 @@ private fun ControlButtons(
     onSkip: () -> Unit,
     onFinish: () -> Unit
 ) {
-    val animatedStart by animateColorAsState(
-        targetValue = themeStart,
-        animationSpec = tween(650, easing = FastOutSlowInEasing),
-        label = "ctrlStart"
-    )
-    val animatedEnd by animateColorAsState(
-        targetValue = themeEnd,
-        animationSpec = tween(650, easing = FastOutSlowInEasing),
-        label = "ctrlEnd"
-    )
-
     val isIdle = snap.state == State.IDLE
 
     AnimatedContent(
@@ -1255,12 +1273,12 @@ private fun ControlButtons(
         label = "ctrlGroup",
     ) { idle ->
         if (idle) {
-            StartButton(animatedStart, animatedEnd, onStart)
+            StartButton(themeStart, themeEnd, onStart)
         } else {
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 StaggerPill(index = 0) {
                     if (snap.isPaused) {
-                        PrimaryPill(stringResource(R.string.home_resume), animatedStart, animatedEnd, onResume)
+                        PrimaryPill(stringResource(R.string.home_resume), themeStart, themeEnd, onResume)
                     } else {
                         GhostPill(stringResource(R.string.home_pause), onPause)
                     }
@@ -1269,7 +1287,7 @@ private fun ControlButtons(
                     GhostPill(stringResource(R.string.home_skip), onSkip)
                 }
                 StaggerPill(index = 2) {
-                    PrimaryPill(stringResource(R.string.home_finish), animatedStart, animatedEnd, onFinish)
+                    PrimaryPill(stringResource(R.string.home_finish), themeStart, themeEnd, onFinish)
                 }
             }
         }
