@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="com.gui.tomato.TaskDaoTest" tests="1" skipped="0" failures="0" errors="0" timestamp="2026-10-09T04:07:45" hostname="DESKTOP-5H9D7UD" time="0.071">
-  <properties/>
-  <testcase name="taskCrud" classname="com.gui.tomato.TaskDaoTest" time="0.071"/>
-  <system-out><![CDATA[]]></system-out>
-  <system-err><![CDATA[]]></system-err>
-</testsuite>
