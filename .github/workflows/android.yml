@@ -1,0 +1,55 @@
+name: Build APK
+
+on:
+  # 手动触发：去 GitHub → Actions 页面，点 "Run workflow" 按钮
+  workflow_dispatch:
+
+  # 打 tag 时自动触发（git tag v1.0 && git push --tags）
+  push:
+    tags:
+      - 'v*'
+
+# 需要写权限才能把 APK 挂到 Release
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build Debug APK
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. 拉代码
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # 2. 安装 JDK 17（带 Gradle 缓存，第二次跑会快很多）
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'gradle'
+
+      # 3. 给 gradlew 加执行权限（Linux 环境必需）
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      # 4. 编译 debug APK
+      - name: Build debug APK
+        run: ./gradlew assembleDebug --stacktrace
+
+      # 5. 上传为 artifact（手动触发和 tag 触发都会上传，去 Actions 页面可下载）
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug
+          path: app/build/outputs/apk/debug/app-debug.apk
+
+      # 6. 只有打 tag 触发时，才把 APK 挂到 Release
+      - name: Upload to Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: app/build/outputs/apk/debug/app-debug.apk
+          generate_release_notes: true
